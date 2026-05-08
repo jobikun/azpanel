@@ -90,8 +90,7 @@ a {
 }
 
 .az-drawer .mdui-collapse-item-body {
-    height: 0;
-    overflow: hidden;
+    display: none;
     margin-top: 0;
     margin-bottom: 0;
     padding-top: 0;
@@ -99,7 +98,8 @@ a {
 }
 
 .az-drawer .mdui-collapse-item-open .mdui-collapse-item-body {
-    height: auto;
+    display: block;
+    height: auto !important;
     overflow: visible;
 }
 
