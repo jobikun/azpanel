@@ -18,9 +18,9 @@ class VersionItem extends Seeder
             [
                 'id' => null,
                 'item' => 'version',
-                'value' => '1.0.0',
+                'value' => '1.2.31',
                 'class' => 'system',
-                'default_value' => '1.0.0',
+                'default_value' => '1.2.31',
                 'type' => 'string',
             ]
         )->save();
