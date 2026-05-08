@@ -14,18 +14,20 @@ class UserAws extends UserBase
         $accounts = Aws::where('user_id', session('user_id'))
             ->order('id', 'desc')
             ->select();
+
         View::assign([
             'total' => $accounts->count(),
             'accounts' => $accounts,
         ]);
+
         return View::fetch('../app/view/user/aws/index.html');
     }
 
     public function searchAccount()
     {
-        $s_name = input('s_name/s');
-        $s_mark = input('s_mark/s');
-        $s_status = input('s_status/d');
+        $s_name = input('s_name/s', '');
+        $s_mark = input('s_mark/s', '');
+        $s_status = input('s_status/d', 'all');
 
         $condition = [];
         $condition[] = ['user_id', '=', session('user_id')];
@@ -37,8 +39,6 @@ class UserAws extends UserBase
             ->field('id')
             ->select();
 
-        // $sql = Db::getLastSql();
-
         return json(['result' => $data]);
     }
 
@@ -48,86 +48,144 @@ class UserAws extends UserBase
             ->field('mark')
             ->select()
             ->toArray();
-        //dump($notes);
+
         View::assign([
             'notes' => $notes,
             'regions' => AwsList::instanceRegion(),
         ]);
+
         return View::fetch('../app/view/user/aws/create.html');
     }
 
     public static function awsCertificateVerify(array $params): bool
     {
-        if ($params[0] === '') {
+        $email = trim($params[0] ?? '');
+        $aws_ak = trim($params[2] ?? '');
+        $aws_sk = trim($params[3] ?? '');
+
+        if ($email === '') {
             throw new \Exception("邮箱不能为空");
         }
-        if (! Tools::emailCheck($params[0])) {
-            throw new \Exception("不是有效的邮箱：{$params[0]}");
+
+        if (!Tools::emailCheck($email)) {
+            throw new \Exception("不是有效的邮箱：{$email}");
         }
-        if (strlen($params[2]) !== 20) {
-            throw new \Exception("Access Key 长度不符要求：{$params[2]}");
+
+        if (strlen($aws_ak) !== 20) {
+            throw new \Exception("Access Key 长度不符要求：{$aws_ak}");
         }
-        if (strlen($params[3]) !== 40) {
-            throw new \Exception("Secret Key 长度不符要求：{$params[3]}");
+
+        if (strlen($aws_sk) !== 40) {
+            throw new \Exception("Secret Key 长度不符要求：{$aws_sk}");
         }
+
         return true;
+    }
+
+    private static function normalizeRegions($regions): array
+    {
+        if (!is_array($regions)) {
+            $regions = [];
+        }
+
+        $regions = array_values(array_filter(array_map('trim', $regions), function ($value) {
+            return $value !== '';
+        }));
+
+        if (empty($regions)) {
+            $regions = ['ap-northeast-1'];
+        }
+
+        if (!in_array('ap-northeast-1', $regions, true)) {
+            $regions[] = 'ap-northeast-1';
+        }
+
+        return array_values(array_unique($regions));
+    }
+
+    private static function normalizeQuota($quota): array
+    {
+        if (!is_array($quota)) {
+            return ['ap-northeast-1' => 'null'];
+        }
+
+        if (!array_key_exists('ap-northeast-1', $quota)) {
+            $quota['ap-northeast-1'] = 'null';
+        }
+
+        return $quota;
     }
 
     public function save()
     {
-        $add_mode = input('add_mode/s');
-        $regions = input('regions/a');
-        $email = input('email/s');
-        $passwd = input('passwd/s');
-        $aws_ak = input('aws_ak/s');
-        $aws_sk = input('aws_sk/s');
-        $user_mark = input('user_mark/s');
-        $batch_addition = input('batch_addition/s');
-        $remark_filling = input('remark_filling/s');
+        $add_mode = input('add_mode/s', 'single');
+        $regions = self::normalizeRegions(input('regions/a', []));
+
+        $email = trim(input('email/s', ''));
+        $passwd = trim(input('passwd/s', ''));
+        $aws_ak = trim(input('aws_ak/s', ''));
+        $aws_sk = trim(input('aws_sk/s', ''));
+        $user_mark = trim(input('user_mark/s', ''));
+        $batch_addition = trim(input('batch_addition/s', ''));
+        $remark_filling = trim(input('remark_filling/s', 'input'));
 
         try {
             if ($add_mode === 'single') {
                 $batch_addition = $email . PHP_EOL . $passwd . PHP_EOL . $aws_ak . PHP_EOL . $aws_sk;
             }
-            $accounts = explode(PHP_EOL, $batch_addition);
+
+            $accounts = preg_split('/\r\n|\r|\n/', $batch_addition);
+            $accounts = array_map('trim', $accounts);
+
             if (count($accounts) % 4 !== 0) {
-                throw new \Exception("内容与数量不匹配");
+                throw new \Exception("内容与数量不匹配，请按 邮箱、密码、AK、SK 四行为一组填写");
             }
+
             $array = [];
             $pointer = 0;
-            while ($pointer < count($accounts) - 1) {
-                $email = $accounts[$pointer++];
-                $passwd = $accounts[$pointer++];
-                $aws_ak = $accounts[$pointer++];
-                $aws_sk = $accounts[$pointer++];
-                // check format
+
+            while ($pointer < count($accounts)) {
+                $email = $accounts[$pointer++] ?? '';
+                $passwd = $accounts[$pointer++] ?? '';
+                $aws_ak = $accounts[$pointer++] ?? '';
+                $aws_sk = $accounts[$pointer++] ?? '';
+
                 self::awsCertificateVerify([
                     $email,
                     $passwd,
                     $aws_ak,
                     $aws_sk,
                 ]);
-                // query quota
+
                 $quota = [];
+
                 foreach ($regions as $region) {
-                    $quota[$region] = AwsApi::getQuota($region, $aws_ak, $aws_sk);
+                    try {
+                        $quota[$region] = AwsApi::getQuota($region, $aws_ak, $aws_sk);
+                    } catch (\Throwable $e) {
+                        $quota[$region] = 'null';
+                    }
                 }
-                // save data
+
+                $quota = self::normalizeQuota($quota);
+
                 $array[] = [
                     'email' => $email,
                     'passwd' => $passwd,
                     'ak' => $aws_ak,
                     'sk' => $aws_sk,
                     'mark' => $remark_filling === 'input' ? $user_mark : $remark_filling,
-                    'quota' => $quota,
-                    'disable' => $quota['ap-northeast-1'] === 'null' ? 1 : 0,
+                    'quota' => json_encode($quota, JSON_UNESCAPED_UNICODE),
+                    'disable' => ($quota['ap-northeast-1'] ?? 'null') === 'null' ? 1 : 0,
                     'user_id' => session('user_id'),
                     'created_at' => time(),
                 ];
             }
+
             Aws::insertAll($array);
+
             return json(Tools::msg('1', '保存结果', '保存成功'));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return json(Tools::msg('0', '保存失败', $e->getMessage()));
         }
     }
@@ -135,9 +193,11 @@ class UserAws extends UserBase
     public function read($id)
     {
         $account = Aws::where('user_id', session('user_id'))->find($id);
+
         if ($account === null) {
             return View::fetch('../app/view/user/reject.html');
         }
+
         if (input('action/s') === 'queryQuota') {
             return json(AwsApi::getQuota(input('region/s'), $account->ak, $account->sk));
         }
@@ -147,17 +207,20 @@ class UserAws extends UserBase
             'account' => $account,
             'locations' => AwsList::instanceRegion(),
         ]);
+
         return View::fetch('../app/view/user/aws/read.html');
     }
 
     public function edit($id)
     {
         $account = Aws::where('user_id', session('user_id'))->find($id);
+
         if ($account === null) {
             return View::fetch('../app/view/user/reject.html');
         }
 
         View::assign('account', $account);
+
         return View::fetch('../app/view/user/aws/edit.html');
     }
 
@@ -165,56 +228,90 @@ class UserAws extends UserBase
     {
         try {
             $account = Aws::where('user_id', session('user_id'))->find($id);
+
+            if ($account === null) {
+                throw new \Exception("账户不存在");
+            }
+
             if (input('action/s') === 'refresh') {
                 $quota = [];
                 $aws_account_quota = json_decode($account['quota'], true);
+
+                $aws_account_quota = self::normalizeQuota($aws_account_quota);
+
                 foreach ($aws_account_quota as $key => $value) {
-                    $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk);
+                    try {
+                        $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk);
+                    } catch (\Throwable $e) {
+                        $quota[$key] = 'null';
+                    }
                 }
-                $account->quota = json_encode($quota);
-                $account->disable = $quota['ap-northeast-1'] === 'null' ? 1 : 0;
+
+                $quota = self::normalizeQuota($quota);
+
+                $account->quota = json_encode($quota, JSON_UNESCAPED_UNICODE);
+                $account->disable = ($quota['ap-northeast-1'] ?? 'null') === 'null' ? 1 : 0;
                 $account->save();
+
                 return json(Tools::msg('1', '刷新结果', '刷新成功'));
             }
+
             if (input('action/s') === 'refreshAll') {
                 $count = 0;
                 $task_uuid = input('task_uuid/s');
                 $accounts = Aws::where('user_id', session('user_id'))->select();
                 $task_id = UserTask::create(session('user_id'), '刷新AWS账户订阅状态', [], $task_uuid);
+
                 foreach ($accounts as $account) {
                     try {
                         $count++;
-                        //sleep(2);
-                        UserTask::update($task_id, $count / $accounts->count(), '正在刷新 ' . $account->email);
+                        UserTask::update($task_id, $count / max($accounts->count(), 1), '正在刷新 ' . $account->email);
+
                         $quota = [];
                         $aws_account_quota = json_decode($account['quota'], true);
+                        $aws_account_quota = self::normalizeQuota($aws_account_quota);
+
                         foreach ($aws_account_quota as $key => $value) {
-                            $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk);
+                            try {
+                                $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk);
+                            } catch (\Throwable $e) {
+                                $quota[$key] = 'null';
+                            }
                         }
-                        $account->quota = json_encode($quota);
-                        $account->disable = $quota['ap-northeast-1'] === 'null' ? 1 : 0;
+
+                        $quota = self::normalizeQuota($quota);
+
+                        $account->quota = json_encode($quota, JSON_UNESCAPED_UNICODE);
+                        $account->disable = ($quota['ap-northeast-1'] ?? 'null') === 'null' ? 1 : 0;
                         $account->save();
-                    } catch (\Exception $e) {
-                        UserTask::end($task_id, true);
+                    } catch (\Throwable $e) {
+                        UserTask::end($task_id, true, $e->getMessage());
+                        return json(Tools::msg('0', '刷新失败', $e->getMessage()));
                     }
                 }
+
                 UserTask::end($task_id, false);
+
                 return json(Tools::msg('1', '刷新结果', '刷新成功'));
             }
-            $account->email = input('email/s');
-            $account->passwd = input('passwd/s');
-            $account->mark = input('mark/s');
-            $account->ak = input('ak/s');
-            $account->sk = input('sk/s');
+
+            $account->email = trim(input('email/s', ''));
+            $account->passwd = trim(input('passwd/s', ''));
+            $account->mark = trim(input('mark/s', ''));
+            $account->ak = trim(input('ak/s', ''));
+            $account->sk = trim(input('sk/s', ''));
+
             self::awsCertificateVerify([
                 $account->email,
                 $account->passwd,
                 $account->ak,
                 $account->sk,
             ]);
+
             $account->save();
+
             return json(Tools::msg('1', '修改结果', '修改成功'));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return json(Tools::msg('0', '修改失败', $e->getMessage()));
         }
     }
@@ -228,10 +325,16 @@ class UserAws extends UserBase
                     ->delete();
             } else {
                 $account = Aws::where('user_id', session('user_id'))->find($id);
+
+                if ($account === null) {
+                    throw new \Exception("账户不存在");
+                }
+
                 $account->delete();
             }
+
             return json(Tools::msg('1', '删除结果', '删除成功'));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return json(Tools::msg('0', '删除失败', $e->getMessage()));
         }
     }
