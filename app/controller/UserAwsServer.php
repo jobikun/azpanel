@@ -238,7 +238,7 @@ class UserAwsServer extends UserBase
             $instances = input('instances/a');
 
             $client = $this->getAWSClient($location, $account->ak, $account->sk);
-            return json($client->$action(['InstanceIds' => $instances])->toArray());
+            return json(AwsApi::manageInstances($client, $action, $instances));
         } catch (\Exception $e) {
             return json([
                 'ret' => 0,

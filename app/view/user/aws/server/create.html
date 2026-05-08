@@ -1,12 +1,12 @@
 {include file="../app/view/user/header.html" title="AWS 创建虚拟机" /}
 
-<div class="mdui-container-fluid">
-    <div class="mdui-row">
-        <div
-            class="mdui-col-xs-12 mdui-col-md-{:think\\facade\\Env::get('theme.CARD_WIDTH')} mdui-col-offset-md-{:think\\facade\\Env::get('theme.CARD_RIGHT_OFFSET')}">
-            <div class="mdui-container-fluid">
-                <p style="color: #3F51B5; font-size: 34px">AWS 创建虚拟机</p>
-            </div>
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">创建 AWS 虚拟机</h1>
+            <p class="az-page-subtitle">选择区域、实例规格、镜像和网络模式来创建 EC2。</p>
+        </div>
+    </div>
 
             <div class="mdui-typo">
                 <div class="mdui-panel" mdui-panel>
@@ -181,10 +181,7 @@
                     </div>
                 </div>
             </div>
-
-        </div>
-    </div>
-</div>
+</main>
 </body>
 
 <script>

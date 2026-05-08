@@ -7,6 +7,39 @@ use Aws\ServiceQuotas\ServiceQuotasClient;
 
 class AwsApi extends BaseController
 {
+    public static function normalizeInstanceAction(string $action): string
+    {
+        $actions = [
+            'start' => 'startInstances',
+            'startInstances' => 'startInstances',
+            'stop' => 'stopInstances',
+            'stopInstances' => 'stopInstances',
+            'restart' => 'rebootInstances',
+            'reboot' => 'rebootInstances',
+            'rebootInstances' => 'rebootInstances',
+            'terminate' => 'terminateInstances',
+            'terminateInstances' => 'terminateInstances',
+        ];
+
+        if (! isset($actions[$action])) {
+            throw new \InvalidArgumentException('Unsupported AWS EC2 action: ' . $action);
+        }
+
+        return $actions[$action];
+    }
+
+    public static function manageInstances(object $session, string $action, array $instance_ids): array
+    {
+        if ($instance_ids === []) {
+            throw new \InvalidArgumentException('No AWS EC2 instances selected.');
+        }
+
+        $action = self::normalizeInstanceAction($action);
+        return $session->$action([
+            'InstanceIds' => $instance_ids,
+        ])->toArray();
+    }
+
     public static function getQuota(string $region, string $ak, string $sk)
     {
         try {

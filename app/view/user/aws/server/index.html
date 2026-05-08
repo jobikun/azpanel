@@ -1,12 +1,15 @@
 {include file="../app/view/user/header.html" title="AWS 虚拟机列表" /}
 
-<div class="mdui-container-fluid">
-    <div class="mdui-row">
-        <div
-            class="mdui-col-xs-12 mdui-col-md-{:think\\facade\\Env::get('theme.CARD_WIDTH')} mdui-col-offset-md-{:think\\facade\\Env::get('theme.CARD_RIGHT_OFFSET')}">
-            <div class="mdui-container-fluid">
-                <p style="color: #3F51B5; font-size: 34px">AWS 虚拟机列表</p>
-            </div>
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">AWS 虚拟机</h1>
+            <p class="az-page-subtitle">按账号和区域加载 EC2 实例，批量启动、停止或重启。</p>
+        </div>
+        <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/server/aws/create">
+            <i class="mdui-icon material-icons">add</i>&nbsp;创建虚拟机
+        </a>
+    </div>
 
             <!-- <div class="mdui-typo">
                 <p>你可以在这里查看 AWS 账户下每个区域的虚拟机</p>
@@ -81,10 +84,7 @@
             </div>
 
             <div class="mdui-m-t-2"></div>
-
-        </div>
-    </div>
-</div>
+</main>
 </body>
 
 <script>

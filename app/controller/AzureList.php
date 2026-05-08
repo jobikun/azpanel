@@ -302,9 +302,13 @@ class AzureList
             // 常用
             'eastasia' => '东亚 中国香港',
             'southeastasia' => '东南亚 新加坡',
+            'indonesiacentral' => '印度尼西亚中部 雅加达',
+            'malaysiawest' => '马来西亚西部 吉隆坡',
+            'newzealandnorth' => '新西兰北部 奥克兰',
             'japaneast' => '日本东部 东京',
             'japanwest' => '日本西部 大阪',
             'koreacentral' => '韩国中部 首尔',
+            'koreasouth' => '韩国南部 釜山',
             // 英国
             'uksouth' => '英国南部 伦敦',
             'ukwest' => '英国西部 加的夫',
@@ -318,29 +322,51 @@ class AzureList
             'southcentralus' => '美国中南部 德克萨斯州',
             'westcentralus' => '美国中西部 怀俄明州',
             'northcentralus' => '美国中北部 伊利诺伊州',
+            // 美洲
+            'chilecentral' => '智利中部 圣地亚哥',
+            'mexicocentral' => '墨西哥中部 克雷塔罗',
             // 澳大利亚
             'australiaeast' => '澳大利亚东部 新南威尔士州',
             'australiasoutheast' => '澳大利亚东南部 维多利亚',
             'australiacentral' => '澳大利亚中部 堪培拉',
+            'australiacentral2' => '澳大利亚中部 2 堪培拉',
             // 加拿大
             'canadaeast' => '加拿大东部 魁北克',
             'canadacentral' => '加拿大中部 多伦多',
             // 欧洲
             'westeurope' => '西欧 荷兰',
             'northeurope' => '北欧 爱尔兰',
+            'austriaeast' => '奥地利东部 维也纳',
+            'belgiumcentral' => '比利时中部 布鲁塞尔',
+            'denmarkeast' => '丹麦东部 哥本哈根',
+            'finlandcentral' => '芬兰中部',
             'norwayeast' => '挪威东部 挪威',
+            'norwaywest' => '挪威西部 挪威',
             'switzerlandnorth' => '瑞士北部 苏黎世',
+            'switzerlandwest' => '瑞士西部 日内瓦',
             'francecentral' => '法国中部 巴黎',
+            'francesouth' => '法国南部 马赛',
             'swedencentral' => '瑞典中部 耶夫勒',
+            'swedensouth' => '瑞典南部',
             'germanywestcentral' => '德国中西部 法兰克福',
+            'germanynorth' => '德国北部 柏林',
+            'italynorth' => '意大利北部 米兰',
+            'polandcentral' => '波兰中部 华沙',
+            'spaincentral' => '西班牙中部 马德里',
             // 印度
             'southindia' => '印度南部 钦奈',
             'jioindiawest' => '印度西部 贾姆纳格尔',
             'centralindia' => '印度中部 浦那',
+            'westindia' => '印度西部 孟买',
             // 其他
             'brazilsouth' => '巴西南部 圣保罗州',
+            'brazilsoutheast' => '巴西东南部 里约热内卢',
             'southafricanorth' => '南非北部 约翰内斯堡',
+            'southafricawest' => '南非西部 开普敦',
+            'israelcentral' => '以色列中部',
+            'qatarcentral' => '卡塔尔中部 多哈',
             'uaenorth' => '阿联酋北部 迪拜',
+            'uaecentral' => '阿联酋中部 阿布扎比',
         ];
     }
 
