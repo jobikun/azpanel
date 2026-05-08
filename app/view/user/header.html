@@ -218,14 +218,25 @@
         </div>
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var drawerItems = document.querySelectorAll('.az-drawer .mdui-collapse-item');
-            drawerItems.forEach(function (item) {
-                item.classList.remove('mdui-collapse-item-open');
-                var body = item.querySelector(':scope > .mdui-collapse-item-body');
-                if (body) {
-                    body.style.height = '0px';
-                }
-            });
-        });
+        (function () {
+            var closed = false;
+            function closeAllDrawerItems() {
+                if (closed) return;
+                var items = document.querySelectorAll('.az-drawer .mdui-collapse-item.mdui-collapse-item-open');
+                if (items.length === 0) return;
+                items.forEach(function (item) {
+                    item.classList.remove('mdui-collapse-item-open');
+                    var body = item.querySelector('.mdui-collapse-item-body');
+                    if (body) {
+                        body.style.display = 'none';
+                        body.style.height = '0px';
+                    }
+                });
+                closed = true;
+            }
+            closeAllDrawerItems();
+            window.addEventListener('load', closeAllDrawerItems);
+            // MDUI may initialize collapse items after load, try again with a delay
+            setTimeout(closeAllDrawerItems, 300);
+        })();
     </script>

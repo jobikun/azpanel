@@ -4,3 +4,5 @@
 *.log
 .env
 composer.lock
+.claude/settings.json
+.claude/settings.local.json

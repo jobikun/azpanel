@@ -71,8 +71,11 @@
                         </div>
                     </div>
                     <div class="mdui-col-sm-12 mdui-col-md-12 mdui-m-t-2">
-                        <p style="color: #3F51B5; font-size: 18px">更多</p>
+                        <p style="color: #3F51B5; font-size: 18px; cursor: pointer; user-select: none" id="more-toggle">
+                            <i class="mdui-icon material-icons" style="vertical-align: middle">expand_more</i> 更多
+                        </p>
                     </div>
+                    <div id="more-section" style="display: none">
                     <div class="mdui-col-sm-12 mdui-col-md-6">
                         备注填充：
                         <select id="remark_filling" class="mdui-select" mdui-select>
@@ -99,6 +102,7 @@
                             <textarea class="mdui-textfield-input" id="share_link"></textarea>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
 
@@ -118,6 +122,21 @@
 
 <script>
     var $ = mdui.$;
+
+    // 更多 展开/折叠
+    var moreOpen = false;
+    $('#more-toggle').on('click', function () {
+        moreOpen = !moreOpen;
+        var icon = $(this).find('.mdui-icon')[0];
+        if (moreOpen) {
+            $('#more-section').slideDown(200);
+            if (icon) icon.textContent = 'expand_less';
+        } else {
+            $('#more-section').slideUp(200);
+            if (icon) icon.textContent = 'expand_more';
+        }
+    });
+
     $('#add').on('click', function () {
         mdui.confirm('添加账户时，面板需要获取此账户的订阅详情，以及账户下所创建的虚拟机列表，这将花费 3~5 秒，等待期间请勿重复点击添加按钮', '添加确认',
             function () {
