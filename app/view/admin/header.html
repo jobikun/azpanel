@@ -58,7 +58,7 @@
                     <div class="mdui-list-item-content">系统设置</div>
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/admin/setting" class="mdui-list-item mdui-ripple">
                         通用
                     </a>
@@ -87,7 +87,7 @@
                     <div class="mdui-list-item-content">用户管理</div>
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/admin/user" class="mdui-list-item mdui-ripple">
                         用户列表
                     </a>
@@ -108,7 +108,7 @@
                     <div class="mdui-list-item-content">公告管理</div>
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/admin/ann" class="mdui-list-item mdui-ripple">
                         公告列表
                     </a>
@@ -125,7 +125,7 @@
                     <div class="mdui-list-item-content">站点日志</div>
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/admin/log/task" class="mdui-list-item mdui-ripple">
                         任务
                     </a>
@@ -164,25 +164,5 @@
             </div>
         </div>
     </div>
-    <script>
-        (function () {
-            var closed = false;
-            function closeAllDrawerItems() {
-                if (closed) return;
-                var items = document.querySelectorAll('.az-drawer .mdui-collapse-item.mdui-collapse-item-open');
-                if (items.length === 0) return;
-                items.forEach(function (item) {
-                    item.classList.remove('mdui-collapse-item-open');
-                    var body = item.querySelector('.mdui-collapse-item-body');
-                    if (body) {
-                        body.style.display = 'none';
-                        body.style.height = '0px';
-                    }
-                });
-                closed = true;
-            }
-            closeAllDrawerItems();
-            window.addEventListener('load', closeAllDrawerItems);
-            setTimeout(closeAllDrawerItems, 300);
-        })();
-    </script>
+    <!-- collapse items stay closed via CSS -->
+

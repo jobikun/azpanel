@@ -129,10 +129,10 @@
         moreOpen = !moreOpen;
         var icon = $(this).find('.mdui-icon')[0];
         if (moreOpen) {
-            $('#more-section').slideDown(200);
+            $('#more-section').show();
             if (icon) icon.textContent = 'expand_less';
         } else {
-            $('#more-section').slideUp(200);
+            $('#more-section').hide();
             if (icon) icon.textContent = 'expand_more';
         }
     });
