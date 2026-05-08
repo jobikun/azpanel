@@ -164,3 +164,15 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var drawerItems = document.querySelectorAll('.az-drawer .mdui-collapse-item');
+            drawerItems.forEach(function (item) {
+                item.classList.remove('mdui-collapse-item-open');
+                var body = item.querySelector(':scope > .mdui-collapse-item-body');
+                if (body) {
+                    body.style.height = '0px';
+                }
+            });
+        });
+    </script>
