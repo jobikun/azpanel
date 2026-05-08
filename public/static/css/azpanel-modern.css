@@ -67,7 +67,7 @@ a {
     font-size: 12px;
 }
 
-.az-drawer .mdui-list {
+.az-drawer > .mdui-list {
     padding: 6px 12px 24px;
 }
 
@@ -87,6 +87,34 @@ a {
 
 .az-drawer .mdui-list-item-icon {
     color: #64748b !important;
+}
+
+.az-drawer .mdui-collapse-item-body {
+    overflow: hidden;
+}
+
+.az-drawer .mdui-collapse-item-body .mdui-list {
+    padding: 0 0 6px 0;
+}
+
+.az-drawer .mdui-collapse-item-body .mdui-list-item {
+    min-height: 36px;
+    margin: 2px 0 2px 48px;
+    padding-left: 16px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.az-drawer-footer {
+    margin: 14px 0 0;
+    padding: 14px 16px 2px;
+    border-top: 1px solid #e5e7eb;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.az-drawer-footer a {
+    color: #64748b;
 }
 
 .az-main {
