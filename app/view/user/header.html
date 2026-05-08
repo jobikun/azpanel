@@ -69,7 +69,7 @@
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
 
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/user/azure" class="mdui-list-item mdui-ripple">
                         账户列表
                     </a>
@@ -95,7 +95,7 @@
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
 
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/user/server/azure" class="mdui-list-item mdui-ripple">
                         虚拟机列表
                     </a>
@@ -117,7 +117,7 @@
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
 
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/user/aws" class="mdui-list-item mdui-ripple">
                         账户列表
                     </a>
@@ -133,7 +133,7 @@
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
 
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/user/server/aws" class="mdui-list-item mdui-ripple">
                         列表
                     </a>
@@ -154,7 +154,7 @@
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
 
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/user/server/azure/rule" class="mdui-list-item mdui-ripple">
                         规则
                     </a>
@@ -171,7 +171,7 @@
                     <div class="mdui-list-item-content">我的账户</div>
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/user/profile" class="mdui-list-item mdui-ripple">
                         个人资料
                     </a>
@@ -188,7 +188,7 @@
                     <div class="mdui-list-item-content">关于项目</div>
                     <i class="mdui-collapse-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                 </div>
-                <div class="mdui-collapse-item-body mdui-list">
+                <div class="mdui-collapse-item-body mdui-list" style="display:none">
                     <a href="/user/license" class="mdui-list-item mdui-ripple">
                         开源协议
                     </a>
@@ -217,14 +217,4 @@
             </div>
         </div>
     </div>
-    <script>
-        window.addEventListener('load', function () {
-            var items = document.querySelectorAll('.az-drawer .mdui-collapse-item.mdui-collapse-item-open');
-            items.forEach(function (item) {
-                item.classList.remove('mdui-collapse-item-open');
-                var body = item.querySelector('.mdui-collapse-item-body');
-                if (body) body.style.height = '0px';
-            });
-        });
-    </script>
 
