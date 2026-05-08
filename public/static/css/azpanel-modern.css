@@ -73,8 +73,8 @@ a {
 
 .az-drawer .mdui-list-item,
 .az-drawer .mdui-collapse-item-header {
-    min-height: 42px;
-    margin: 4px 0;
+    min-height: 36px;
+    margin: 2px 0;
     border-radius: 8px;
     color: #334155;
 }
