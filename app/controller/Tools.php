@@ -104,18 +104,15 @@ class Tools
     }
 
     public static function getMailAddress($text)
-    {
-        // https://blog.csdn.net/weixin_39569112/article/details/115825074
-
-        $pattern = "/([a-z0-9\-_\.]+@[a-z0-9]+\.[a-z0-9\-_\.]+)/";
-        preg_match($pattern, $text, $matches);
-        return $matches[0];
-    }
+{
+    $pattern = "/([a-zA-Z0-9\-_\.]+@[a-zA-Z0-9\-_\.]+\.[a-zA-Z0-9\-_\.]+)/";
+    preg_match($pattern, $text, $matches);
+    return $matches[0] ?? '';
+}
 
     public static function getJsonContent($text)
-    {
-        // https://segmentfault.com/q/1010000002455112 @sogouo
-        preg_match('/{(.*?)}/is', $text, $matches);
-        return $matches[0];
-    }
+{
+    preg_match('/{(.*?)}/is', $text, $matches);
+    return $matches[0] ?? '';
+}
 }
