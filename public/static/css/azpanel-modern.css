@@ -89,19 +89,18 @@ a {
     color: #64748b !important;
 }
 
-/* Sidebar collapse: default closed state (beat MDUI inline styles) */
 .az-drawer .mdui-collapse-item-body {
-    height: 0 !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    overflow: hidden !important;
+    height: 0;
+    overflow: hidden;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
-.az-drawer .mdui-collapse-item-open > .mdui-collapse-item-body {
-    height: auto !important;
-    overflow: visible !important;
+.az-drawer .mdui-collapse-item-open .mdui-collapse-item-body {
+    height: auto;
+    overflow: visible;
 }
 
 .az-drawer .mdui-collapse-item-body .mdui-list {

@@ -164,5 +164,14 @@
             </div>
         </div>
     </div>
-    <!-- collapse items stay closed via CSS -->
+    <script>
+        window.addEventListener('load', function () {
+            var items = document.querySelectorAll('.az-drawer .mdui-collapse-item.mdui-collapse-item-open');
+            items.forEach(function (item) {
+                item.classList.remove('mdui-collapse-item-open');
+                var body = item.querySelector('.mdui-collapse-item-body');
+                if (body) body.style.height = '0px';
+            });
+        });
+    </script>
 
