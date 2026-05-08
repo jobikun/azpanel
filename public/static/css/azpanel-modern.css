@@ -89,13 +89,17 @@ a {
     color: #64748b !important;
 }
 
-/* Sidebar collapse: never show children when closed (beats MDUI inline styles) */
+/* Sidebar collapse: default closed state (beat MDUI inline styles) */
 .az-drawer .mdui-collapse-item-body {
-    display: none !important;
+    height: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: hidden !important;
 }
 
 .az-drawer .mdui-collapse-item-open > .mdui-collapse-item-body {
-    display: block !important;
     height: auto !important;
     overflow: visible !important;
 }
