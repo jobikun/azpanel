@@ -89,8 +89,14 @@ a {
     color: #64748b !important;
 }
 
+/*
+ * Sidebar collapse: max-height clamps body to 0 when closed
+ * (stronger than MDUI's inline height because !important)
+ * Does NOT use display:none so scrollHeight stays readable for MDUI animation
+ */
 .az-drawer .mdui-collapse-item-body {
-    display: none;
+    max-height: 0 !important;
+    overflow: hidden;
     margin-top: 0;
     margin-bottom: 0;
     padding-top: 0;
@@ -98,8 +104,7 @@ a {
 }
 
 .az-drawer .mdui-collapse-item-open .mdui-collapse-item-body {
-    display: block;
-    height: auto !important;
+    max-height: none !important;
     overflow: visible;
 }
 
