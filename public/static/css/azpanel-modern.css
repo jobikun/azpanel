@@ -89,16 +89,9 @@ a {
     color: #64748b !important;
 }
 
-/* Sidebar collapse: hide by default, reveal when mdui declares it open */
+/* Let MDUI own the collapse height; this only prevents submenu text from peeking out. */
 .az-drawer .mdui-collapse-item-body {
-    visibility: hidden;
-    height: 0 !important;
     overflow: hidden !important;
-}
-.az-drawer .mdui-collapse-item-open .mdui-collapse-item-body {
-    visibility: visible !important;
-    height: auto !important;
-    overflow: visible !important;
 }
 
 .az-drawer .mdui-collapse-item-body .mdui-list {
@@ -107,8 +100,8 @@ a {
 
 .az-drawer .mdui-collapse-item-body .mdui-list-item {
     min-height: 36px;
-    margin: 2px 0 2px 48px;
-    padding-left: 16px;
+    margin: 0;
+    padding-left: 72px;
     color: #64748b;
     font-size: 14px;
 }
