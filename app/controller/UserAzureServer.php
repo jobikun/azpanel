@@ -769,7 +769,9 @@ class UserAzureServer extends UserBase
         $task_id = UserTask::create(session('user_id'), '更换公网地址', $params, $task_uuid);
 
         try {
-            if (isset($server->ipv6_address)) {
+            $vm_network_details = json_decode($server->network_details, true);
+            $allocation_method = $vm_network_details['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['properties']['publicIPAllocationMethod'] ?? 'Dynamic';
+            if ($allocation_method === 'Static') {
                 throw new \Exception('此虚拟机 ipv4 是静态类型地址，不支持更换');
             }
 
@@ -833,6 +835,85 @@ class UserAzureServer extends UserBase
 
         UserTask::end($task_id, false);
         return json(Tools::msg('1', '更换结果', '更换成功'));
+    }
+
+    public function addIpv4($uuid)
+    {
+        $count = 0;
+        $steps = 4;
+        $task_uuid = input('task_uuid/s');
+        $server = AzureServer::where('user_id', session('user_id'))
+            ->where('vm_id', $uuid)
+            ->find();
+        if ($server === null) {
+            return json(Tools::msg('0', '增加失败', '服务器未找到'));
+        }
+
+        $params = [
+            'vm_name' => $server->name,
+        ];
+        $task_id = UserTask::create(session('user_id'), '增加公网 IPv4 地址', $params, $task_uuid);
+
+        try {
+            UserTask::update($task_id, (++$count / $steps), '正在检查订阅状态');
+            $sub_info = AzureApi::getAzureSubscription($server->account_id);
+            if ($sub_info['value']['0']['state'] !== 'Enabled') {
+                throw new \Exception('订阅状态被设置为 Disabled 或 Warned');
+            }
+
+            $account = Azure::find($server->account_id);
+            $client = new Client();
+            $resource_group = $server->resource_group;
+            $new_ip_name = $server->name . '_ipv4_add';
+
+            // 判断现有公网 IP 的 SKU 类型
+            $net_details = json_decode($server->network_details, true);
+            $sku_standard = false;
+            if (isset($net_details['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['sku']['name'])
+                && $net_details['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['sku']['name'] === 'Standard') {
+                $sku_standard = true;
+            }
+
+            UserTask::update($task_id, (++$count / $steps), '正在创建新的 IPv4 地址');
+            $new_ip_id = AzureApi::createAzurePublicNetworkIpv4(
+                $client,
+                $account,
+                $new_ip_name,
+                $resource_group,
+                $server->location,
+                $sku_standard
+            );
+
+            UserTask::update($task_id, (++$count / $steps), '正在将新 IPv4 地址绑定到网络接口');
+            $nic_name = $server->network_interfaces;
+            $ip_config_name = 'ipconfiguraion_v4_add';
+            AzureApi::addNetworkInterfaceIpConfiguration(
+                $client,
+                $account,
+                $resource_group,
+                $nic_name,
+                $new_ip_id,
+                $ip_config_name,
+                $server->location
+            );
+
+            UserTask::update($task_id, (++$count / $steps), '正在获取更新后的网络信息');
+            $network_details = AzureApi::getAzureNetworkInterfacesDetails(
+                $server->account_id,
+                $server->network_interfaces,
+                $resource_group,
+                $server->at_subscription_id
+            );
+            $server->network_details = json_encode($network_details);
+            $server->save();
+        } catch (\Exception $e) {
+            $error = $e->getMessage();
+            UserTask::end($task_id, true, json_encode(['msg' => $error]));
+            return json(Tools::msg('0', '增加失败', $error));
+        }
+
+        UserTask::end($task_id, false);
+        return json(Tools::msg('1', '增加结果', '增加成功'));
     }
 
     public function check($ipv4)
