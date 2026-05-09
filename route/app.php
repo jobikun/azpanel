@@ -89,7 +89,6 @@ Route::put('/user/server/azure/rule/:uuid',       'UserAzureServer/update');
 Route::post('/user/server/azure/remark/:uuid',    'UserAzureServer/remark');
 Route::post('/user/server/azure/refresh/:uuid',   'UserAzureServer/refresh');
 Route::post('/user/server/azure/change/:uuid',    'UserAzureServer/change');
-Route::post('/user/server/azure/addipv4/:uuid',   'UserAzureServer/addIpv4');
 Route::post('/user/server/azure/check/:ipv4',     'UserAzureServer/check');
 Route::post('/user/server/azure/sync/:uuid',      'UserAzureServer/sync');
 Route::delete('/user/server/azure/remove/:uuid',  'UserAzureServer/delete');

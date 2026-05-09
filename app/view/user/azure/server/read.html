@@ -72,9 +72,6 @@
                                         <p>
                                             DDNS：<code>{$network_details.properties.ipConfigurations.0.properties.publicIPAddress.properties.dnsSettings.fqdn ?? 'null'}</code>
                                         </p>
-                                        <p>
-                                            <button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" onclick="addIpv4(this)" data-id="{$server.vm_id}">增加 IPv4</button>
-                                        </p>
                                     </div>
                                 </div>
                                 {if isset($network_details.properties.ipConfigurations.1.name)}
@@ -433,62 +430,6 @@
     $("#new_tier").prop('value', '{$vm_disk_tier}');
     $("#traffic_rule").prop('value', '{$server->rule}');
     $("#new_size option[value='{$server->vm_size}']").attr('disabled', 'disabled');
-
-    function guid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
-    function getProgress() {
-        $.ajax({
-            method: 'GET',
-            url: "/user/progress/" + uuid,
-            dataType: "json",
-            success: function (data) {
-                var width = data.schedule + '%';
-                $('.mdui-progress-determinate').css('width', width);
-                $('#hint').replaceWith("<p id=\"hint\">" + data.current + "</p>");
-            }
-        });
-    }
-
-    function addIpv4(that) {
-        let id = $(that).data('id');
-        mdui.confirm('将为虚拟机增加一个额外的公网 IPv4 地址', '增加确认',
-            function () {
-                var load = new mdui.alert('<p id=\"hint\">准备中</p><div class=\"mdui-progress\"><div class=\"mdui-progress-determinate\"></div></div>', '进行中');
-                uuid = guid();
-
-                $.ajax({
-                    method: 'POST',
-                    url: "/user/server/azure/addipv4/" + id,
-                    data: {
-                        task_uuid: uuid,
-                    },
-                    dataType: "json",
-                    beforeSend: function () {
-                        setInterval(getProgress, 1000)
-                    },
-                    success: function (data) {
-                        load.close();
-                        if (data.status == '0') {
-                            mdui.alert(data.content, data.title);
-                        } else {
-                            mdui.alert(data.content, data.title);
-                            setTimeout("window.location = '/user/server/azure'", 1500);
-                        }
-                    }
-                });
-            },
-            function () { },
-            {
-                confirmText: "确定",
-                cancelText: "取消",
-            }
-        );
-    }
 </script>
 {include file="../app/view/user/footer.html" /}
 

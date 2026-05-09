@@ -645,67 +645,6 @@ class AzureApi extends BaseController
         return $result->id;
     }
 
-    public static function addNetworkInterfaceIpConfiguration(
-        $client,
-        $account,
-        $resource_group_name,
-        $nic_name,
-        $new_public_ip_id,
-        $new_ip_config_name,
-        $location
-    ) {
-        $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/networkInterfaces/' . $nic_name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
-
-        $result = $client->get($url, [
-            'headers' => self::getToken($account->id),
-        ]);
-        $nic = json_decode($result->getBody(), true);
-
-        $body = [
-            'location' => $location,
-            'properties' => [
-                'enableAcceleratedNetworking' => $nic['properties']['enableAcceleratedNetworking'] ?? false,
-                'ipConfigurations' => [],
-            ],
-        ];
-
-        foreach ($nic['properties']['ipConfigurations'] as $config) {
-            $entry = [
-                'name' => $config['name'],
-                'properties' => [
-                    'subnet' => ['id' => $config['properties']['subnet']['id']],
-                ],
-            ];
-            if (isset($config['properties']['publicIPAddress'])) {
-                $entry['properties']['publicIPAddress'] = ['id' => $config['properties']['publicIPAddress']['id']];
-            }
-            if (!empty($config['properties']['primary'])) {
-                $entry['properties']['primary'] = true;
-            }
-            if (isset($config['properties']['privateIPAddressVersion'])) {
-                $entry['properties']['privateIPAddressVersion'] = $config['properties']['privateIPAddressVersion'];
-            }
-            $body['properties']['ipConfigurations'][] = $entry;
-        }
-
-        $body['properties']['ipConfigurations'][] = [
-            'name' => $new_ip_config_name,
-            'properties' => [
-                'publicIPAddress' => ['id' => $new_public_ip_id],
-                'subnet' => ['id' => $nic['properties']['ipConfigurations'][0]['properties']['subnet']['id']],
-            ],
-        ];
-
-        if (isset($nic['properties']['networkSecurityGroup'])) {
-            $body['properties']['networkSecurityGroup'] = ['id' => $nic['properties']['networkSecurityGroup']['id']];
-        }
-
-        $client->put($url, [
-            'headers' => self::getToken($account->id, true),
-            'json' => $body,
-        ]);
-    }
-
     public static function createAzureVm($client, $account, $vm_name, $vm_config, $vm_image, $interfaces, $location)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/create-or-update
