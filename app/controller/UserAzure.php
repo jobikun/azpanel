@@ -427,14 +427,24 @@ class UserAzure extends UserBase
 
         foreach ($servers as $server) {
             if (!isset($server->disk_details)) {
-                $server->disk_details = json_encode(AzureApi::getDisks($server));
-                $server->save();
+                try {
+                    $server->disk_details = json_encode(AzureApi::getDisks($server));
+                    $server->save();
+                } catch (\Exception $e) {
+                    continue;
+                }
             }
             $disk_details = json_decode($server->disk_details, true);
+            if ($disk_details === null) {
+                continue;
+            }
             $vm_disk_created = strtotime($disk_details['properties']['timeCreated']);
             $time_set[] = $vm_disk_created;
         }
 
+        if (empty($time_set)) {
+            return 0;
+        }
         $min_value = $account->updated_at > min($time_set) ? min($time_set) : $account->updated_at;
         return round((time() - $min_value) / 86400, 2);
     }
@@ -452,8 +462,13 @@ class UserAzure extends UserBase
                 ->select();
             foreach ($servers as $server) {
                 if (!isset($server->disk_details)) {
-                    $server->disk_details = json_encode(AzureApi::getDisks($server));
-                    $server->save();
+                    try {
+                        $server->disk_details = json_encode(AzureApi::getDisks($server));
+                        $server->save();
+                    } catch (\Exception $e) {
+                        $server->disk_details = null;
+                        continue;
+                    }
                 }
                 $disk_details = json_decode($server->disk_details, true);
                 $vm_disk_created = strtotime($disk_details['properties']['timeCreated']);

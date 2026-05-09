@@ -76,6 +76,8 @@ Route::post('/user/aws/search',                   'UserAws/searchAccount');
 
 // Aws 服务器
 Route::resource('/user/server/aws',               'UserAwsServer');
+Route::post('/user/server/aws/addipv4',           'UserAwsServer/addIpv4');
+Route::post('/user/server/aws/changeip',          'UserAwsServer/changeIp');
 
 // Azure 服务器
 Route::resource('/user/server/azure',             'UserAzureServer');

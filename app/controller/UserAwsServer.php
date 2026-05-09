@@ -251,4 +251,121 @@ class UserAwsServer extends UserBase
     {
         return false;
     }
+
+    public function changeIp()
+    {
+        $account_id = input('account_id/d');
+        $location = input('location/s');
+        $instance_id = input('instance_id/s');
+
+        $account = Aws::where('user_id', session('user_id'))->find($account_id);
+        if ($account === null) {
+            return json(Tools::msg('0', '更换失败', '账户未找到'));
+        }
+
+        try {
+            $client = $this->getAWSClient($location, $account->ak, $account->sk);
+
+            // 获取实例信息
+            $result = $client->describeInstances([
+                'Filters' => [
+                    [
+                        'Name' => 'instance-id',
+                        'Values' => [$instance_id],
+                    ],
+                ],
+            ]);
+            $instance = $result['Reservations'][0]['Instances'][0];
+
+            $old_public_ip = 'null';
+
+            // 检查并释放当前弹性 IP
+            if (isset($instance['NetworkInterfaces'][0]['Association']['AllocationId'])) {
+                $old_allocation_id = $instance['NetworkInterfaces'][0]['Association']['AllocationId'];
+                $old_public_ip = $instance['NetworkInterfaces'][0]['Association']['PublicIp'];
+
+                // 检查是否有多个弹性 IP
+                $eni_result = $client->describeNetworkInterfaces([
+                    'Filters' => [
+                        [
+                            'Name' => 'association.allocation-id',
+                            'Values' => [$old_allocation_id],
+                        ],
+                    ],
+                ]);
+                $association_id = $eni_result['NetworkInterfaces'][0]['Association']['AssociationId'] ?? null;
+
+                if ($association_id) {
+                    $client->disassociateAddress([
+                        'AssociationId' => $association_id,
+                    ]);
+                }
+
+                $client->releaseAddress([
+                    'AllocationId' => $old_allocation_id,
+                ]);
+            }
+
+            // 分配新弹性 IP
+            [$new_public_ip, $new_allocation_id] = AwsApi::allocateAddress($client);
+
+            // 获取子网 ID 并关联
+            $subnet_id = $instance['SubnetId'] ?? null;
+            if ($subnet_id === null) {
+                throw new \Exception('无法获取实例的子网信息');
+            }
+
+            $client->associateAddress([
+                'AllocationId' => $new_allocation_id,
+                'InstanceId' => $instance_id,
+            ]);
+
+            return json(Tools::msg('1', '更换成功', "旧 IP: {$old_public_ip}<br>新 IP: {$new_public_ip}"));
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '更换失败', $e->getMessage()));
+        }
+    }
+
+    public function addIpv4()
+    {
+        $account_id = input('account_id/d');
+        $location = input('location/s');
+        $instance_id = input('instance_id/s');
+
+        $account = Aws::where('user_id', session('user_id'))->find($account_id);
+        if ($account === null) {
+            return json(Tools::msg('0', '增加失败', '账户未找到'));
+        }
+
+        try {
+            $client = $this->getAWSClient($location, $account->ak, $account->sk);
+
+            // 分配弹性 IP
+            [$public_ip, $allocation_id] = AwsApi::allocateAddress($client);
+
+            // 获取实例的子网 ID
+            $result = $client->describeInstances([
+                'Filters' => [
+                    [
+                        'Name' => 'instance-id',
+                        'Values' => [$instance_id],
+                    ],
+                ],
+            ]);
+            $subnet_id = $result['Reservations'][0]['Instances'][0]['SubnetId'] ?? null;
+            if ($subnet_id === null) {
+                throw new \Exception('无法获取实例的子网信息');
+            }
+
+            // 关联弹性 IP
+            $client->associateAddress([
+                'AllocationId' => $allocation_id,
+                'InstanceId' => $instance_id,
+            ]);
+
+            return json(Tools::msg('1', '增加成功', "新 IPv4: {$public_ip}"));
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '增加失败', $e->getMessage()));
+        }
+    }
 }

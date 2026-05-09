@@ -873,7 +873,7 @@ class UserAzureServer extends UserBase
     public function addIpv4($uuid)
     {
         $count = 0;
-        $steps = 5;
+        $steps = 7;
         $task_uuid = input('task_uuid/s');
         $server = AzureServer::where('user_id', session('user_id'))
             ->where('vm_id', $uuid)
@@ -942,6 +942,18 @@ class UserAzureServer extends UserBase
             $server->network_details = json_encode($network_details);
             $server->ip_address = $network_details['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['properties']['ipAddress'] ?? $server->ip_address;
             $server->save();
+
+            UserTask::update($task_id, (++$count / $steps), '正在重启虚拟机');
+            AzureApi::manageVirtualMachine('restart', $server->account_id, $server->request_url);
+
+            UserTask::update($task_id, (++$count / $steps), '等待虚拟机恢复运行');
+            $wait_count = 0;
+            do {
+                sleep(3);
+                $vm_status = AzureApi::getAzureVirtualMachineStatus($server->account_id, $server->request_url);
+                $status = $vm_status['statuses']['1']['code'] ?? 'PowerState/unknown';
+                $wait_count++;
+            } while ($status !== 'PowerState/running' && $wait_count < 40);
         } catch (\Exception $e) {
             $error = $e->getMessage();
             UserTask::end($task_id, true, json_encode(['msg' => $error]));

@@ -7,19 +7,7 @@ class AwsList
     public static function instanceSizes()
     {
         return [
-            'c5.large' => '2 vCPU, 4 GiB 内存',
-            'c5.xlarge' => '4 vCPU, 8 GiB 内存',
-            'c5.2xlarge' => '8 vCPU, 16 GiB 内存',
-            'c5.4xlarge' => '16 vCPU, 32 GiB 内存',
-            'c5a.large' => '2 vCPU, 4 GiB 内存',
-            'c5a.xlarge' => '4 vCPU, 8 GiB 内存',
-            'c5a.2xlarge' => '8 vCPU, 16 GiB 内存',
-            'c5a.4xlarge' => '16 vCPU, 32 GiB 内存',
-            'c5a.8xlarge' => '32 vCPU, 64 GiB 内存',
-            'c5n.large' => '2 vCPU, 5.25 GiB 内存',
-            'c5n.xlarge' => '4 vCPU, 10.5 GiB 内存',
-            'c5n.2xlarge' => '8 vCPU, 21 GiB 内存',
-            'c5n.4xlarge' => '16 vCPU, 42 GiB 内存',
+            // T2 系列 (burstable, x86)
             't2.nano' => '1 vCPU, 0.5 GiB 内存',
             't2.micro' => '1 vCPU, 1 GiB 内存',
             't2.small' => '1 vCPU, 2 GiB 内存',
@@ -27,6 +15,7 @@ class AwsList
             't2.large' => '2 vCPU, 8 GiB 内存',
             't2.xlarge' => '4 vCPU, 16 GiB 内存',
             't2.2xlarge' => '8 vCPU, 32 GiB 内存',
+            // T3 系列 (burstable, x86)
             't3.nano' => '2 vCPU, 0.5 GiB 内存',
             't3.micro' => '2 vCPU, 1 GiB 内存',
             't3.small' => '2 vCPU, 2 GiB 内存',
@@ -34,6 +23,7 @@ class AwsList
             't3.large' => '2 vCPU, 8 GiB 内存',
             't3.xlarge' => '4 vCPU, 16 GiB 内存',
             't3.2xlarge' => '8 vCPU, 32 GiB 内存',
+            // T3a 系列 (burstable, AMD)
             't3a.nano' => '2 vCPU, 0.5 GiB 内存',
             't3a.micro' => '2 vCPU, 1 GiB 内存',
             't3a.small' => '2 vCPU, 2 GiB 内存',
@@ -41,6 +31,42 @@ class AwsList
             't3a.large' => '2 vCPU, 8 GiB 内存',
             't3a.xlarge' => '4 vCPU, 16 GiB 内存',
             't3a.2xlarge' => '8 vCPU, 32 GiB 内存',
+            // T4g 系列 (burstable, ARM Graviton2)
+            't4g.nano' => '2 vCPU, 0.5 GiB 内存',
+            't4g.micro' => '2 vCPU, 1 GiB 内存',
+            't4g.small' => '2 vCPU, 2 GiB 内存',
+            't4g.medium' => '2 vCPU, 4 GiB 内存',
+            't4g.large' => '2 vCPU, 8 GiB 内存',
+            't4g.xlarge' => '4 vCPU, 16 GiB 内存',
+            't4g.2xlarge' => '8 vCPU, 32 GiB 内存',
+            // C5 系列 (compute optimized, x86)
+            'c5.large' => '2 vCPU, 4 GiB 内存',
+            'c5.xlarge' => '4 vCPU, 8 GiB 内存',
+            'c5.2xlarge' => '8 vCPU, 16 GiB 内存',
+            'c5.4xlarge' => '16 vCPU, 32 GiB 内存',
+            // C5a 系列 (compute optimized, AMD)
+            'c5a.large' => '2 vCPU, 4 GiB 内存',
+            'c5a.xlarge' => '4 vCPU, 8 GiB 内存',
+            'c5a.2xlarge' => '8 vCPU, 16 GiB 内存',
+            'c5a.4xlarge' => '16 vCPU, 32 GiB 内存',
+            'c5a.8xlarge' => '32 vCPU, 64 GiB 内存',
+            // C5n 系列 (compute optimized, x86 with networking)
+            'c5n.large' => '2 vCPU, 5.25 GiB 内存',
+            'c5n.xlarge' => '4 vCPU, 10.5 GiB 内存',
+            'c5n.2xlarge' => '8 vCPU, 21 GiB 内存',
+            'c5n.4xlarge' => '16 vCPU, 42 GiB 内存',
+            // C7g 系列 (compute optimized, ARM Graviton3)
+            'c7g.medium' => '1 vCPU, 2 GiB 内存',
+            'c7g.large' => '2 vCPU, 4 GiB 内存',
+            'c7g.xlarge' => '4 vCPU, 8 GiB 内存',
+            'c7g.2xlarge' => '8 vCPU, 16 GiB 内存',
+            'c7g.4xlarge' => '16 vCPU, 32 GiB 内存',
+            // M7g 系列 (general purpose, ARM Graviton3)
+            'm7g.medium' => '1 vCPU, 4 GiB 内存',
+            'm7g.large' => '2 vCPU, 8 GiB 内存',
+            'm7g.xlarge' => '4 vCPU, 16 GiB 内存',
+            'm7g.2xlarge' => '8 vCPU, 32 GiB 内存',
+            'm7g.4xlarge' => '16 vCPU, 64 GiB 内存',
         ];
     }
 
@@ -102,6 +128,18 @@ class AwsList
             'ubuntu-24.04' => [
                 'imageOwner' => '099720109477',
                 'imageName' => 'ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*',
+            ],
+            'al2023' => [
+                'imageOwner' => '137112412989',
+                'imageName' => 'al2023-ami-*-kernel-*-x86_64',
+            ],
+            'Windows_Server_2022' => [
+                'imageOwner' => '801119661308',
+                'imageName' => 'Windows_Server-2022-English-Full-Base-*',
+            ],
+            'Windows_Server_2025' => [
+                'imageOwner' => '801119661308',
+                'imageName' => 'Windows_Server-2025-English-Full-Base-*',
             ],
         ];
     }
