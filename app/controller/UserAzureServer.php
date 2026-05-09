@@ -34,6 +34,18 @@ class UserAzureServer extends UserBase
                 $server->status = $vm_status['statuses']['1']['code'] ?? 'null';
                 $server->save();
             }
+
+            // 从 network_details 提取所有公网 IPv4 地址
+            $all_ips = [];
+            $net_details = json_decode($server->network_details, true);
+            if ($net_details && isset($net_details['properties']['ipConfigurations'])) {
+                foreach ($net_details['properties']['ipConfigurations'] as $ip_config) {
+                    if (isset($ip_config['properties']['publicIPAddress']['properties']['ipAddress'])) {
+                        $all_ips[] = $ip_config['properties']['publicIPAddress']['properties']['ipAddress'];
+                    }
+                }
+            }
+            $server->ip_addresses = !empty($all_ips) ? implode("\n", $all_ips) : $server->ip_address;
         }
 
         View::assign([
@@ -911,6 +923,7 @@ class UserAzureServer extends UserBase
                 $server->at_subscription_id
             );
             $server->network_details = json_encode($network_details);
+            $server->ip_address = $network_details['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['properties']['ipAddress'] ?? $server->ip_address;
             $server->save();
         } catch (\Exception $e) {
             $error = $e->getMessage();

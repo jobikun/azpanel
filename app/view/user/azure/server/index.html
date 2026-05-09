@@ -130,7 +130,7 @@
                             </td>
                             <td>{$server.location}</td>
                             <td>{:str_replace('Standard_', '', $server.vm_size)}</td>
-                            <td id="ip-{$server.id}">{$server.ip_address}</td>
+                            <td id="ip-{$server.id}">{:nl2br($server.ip_addresses)}</td>
                             <td class="disable-replication"
                                 mdui-tooltip="{content: '{$server.os_sku}', position: 'top'}">
                                 {$server.os_offer}
