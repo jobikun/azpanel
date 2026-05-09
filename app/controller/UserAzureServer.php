@@ -563,17 +563,21 @@ class UserAzureServer extends UserBase
         $traffic_rules = ControlRule::where('user_id', session('user_id'))->select();
 
         if ($server->disk_details === null) {
-            $disk_details = json_encode(AzureApi::getDisks($server));
-            $server->disk_details = $disk_details;
-            $server->save();
+            try {
+                $disk_response = AzureApi::getDisks($server);
+                $server->disk_details = json_encode($disk_response);
+                $server->save();
+            } catch (\Exception $e) {
+                $server->disk_details = null;
+            }
         }
 
         $vm_details = json_decode($server->vm_details, true);
-        $disk_details = $server->disk_details === null ? $disk_details : json_decode($server->disk_details, true);
+        $disk_details = $server->disk_details === null ? null : json_decode($server->disk_details, true);
         $network_details = json_decode($server->network_details, true);
         $instance_details = json_decode($server->instance_details, true);
-        $vm_disk_created = strtotime($instance_details['disks']['0']['statuses']['0']['time']);
-        $vm_disk_tier = $disk_details['properties']['tier'] ?? 'P4';
+        $vm_disk_created = strtotime($instance_details['disks']['0']['statuses']['0']['time'] ?? 'now');
+        $vm_disk_tier = is_array($disk_details) ? ($disk_details['properties']['tier'] ?? 'P4') : 'P4';
 
         $vm_dialog = json_encode($vm_details, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $disk_dialog = json_encode($disk_details, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
