@@ -87,22 +87,35 @@ class AwsList
     public static function instanceImage()
     {
         return [
+            'debian-10' => [
+                'imageOwner' => '136693071363',
+                'imageName' => 'debian-10-amd64-2024*',
+            ],
             'debian-11' => [
                 'imageOwner' => '136693071363',
-                'imageName' => 'debian-11-amd64-*',
+                'imageName' => 'debian-11-amd64-2024*',
             ],
             'debian-12' => [
                 'imageOwner' => '136693071363',
-                'imageName' => 'debian-12-amd64-*',
+                'imageName' => 'debian-12-amd64-2024*',
+            ],
+            'ubuntu-20.04' => [
+                'imageOwner' => '099720109477',
+                'imageName' => 'ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-2024*',
             ],
             'ubuntu-22.04' => [
                 'imageOwner' => '099720109477',
-                'imageName' => 'ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*',
+                'imageName' => 'ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-2025*',
             ],
-            'ubuntu-24.04' => [
-                'imageOwner' => '099720109477',
-                'imageName' => 'ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*',
-            ],
+            // TODO: 完成密钥登入
+            // 'windows-server-2022-chinese' => [
+            //     'imageOwner' => '801119661308',
+            //     'imageName' => 'Windows_Server-2022-Chinese_Simplified-Full-Base-*',
+            // ],
+            // 'windows-server-2022-english' => [
+            //     'imageOwner' => '801119661308',
+            //     'imageName' => 'Windows_Server-2022-English-Full-Base-*',
+            // ],
         ];
     }
 }
