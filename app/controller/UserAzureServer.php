@@ -611,6 +611,23 @@ class UserAzureServer extends UserBase
         View::assign('network_details', $network_details);
         View::assign('instance_dialog', $instance_dialog);
         View::assign('instance_details', $instance_details);
+
+        // 提取所有公网 IPv4 配置
+        $network_ipv4_configs = [];
+        $network_ipv6_config = null;
+        if (isset($network_details['properties']['ipConfigurations'])) {
+            foreach ($network_details['properties']['ipConfigurations'] as $config) {
+                $is_v6 = isset($config['properties']['publicIPAddress']['properties']['publicIPAddressVersion'])
+                    && $config['properties']['publicIPAddress']['properties']['publicIPAddressVersion'] === 'IPv6';
+                if ($is_v6) {
+                    $network_ipv6_config = $config;
+                } elseif (isset($config['properties']['publicIPAddress']['properties']['ipAddress'])) {
+                    $network_ipv4_configs[] = $config;
+                }
+            }
+        }
+        View::assign('network_ipv4_configs', $network_ipv4_configs);
+        View::assign('network_ipv6_config', $network_ipv6_config);
         return View::fetch('../app/view/user/azure/server/read.html');
     }
 
