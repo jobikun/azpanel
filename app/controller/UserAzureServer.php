@@ -844,7 +844,7 @@ class UserAzureServer extends UserBase
     public function addIpv4($uuid)
     {
         $count = 0;
-        $steps = 4;
+        $steps = 5;
         $task_uuid = input('task_uuid/s');
         $server = AzureServer::where('user_id', session('user_id'))
             ->where('vm_id', $uuid)
@@ -886,6 +886,9 @@ class UserAzureServer extends UserBase
                 $server->location,
                 $sku_standard
             );
+
+            UserTask::update($task_id, (++$count / $steps), '正在等待 IPv4 地址就绪');
+            sleep(5);
 
             UserTask::update($task_id, (++$count / $steps), '正在将新 IPv4 地址绑定到网络接口');
             $nic_name = $server->network_interfaces;

@@ -700,10 +700,25 @@ class AzureApi extends BaseController
             $body['properties']['networkSecurityGroup'] = ['id' => $nic['properties']['networkSecurityGroup']['id']];
         }
 
-        $client->put($url, [
-            'headers' => self::getToken($account->id, true),
-            'json' => $body,
-        ]);
+        $max_retries = 5;
+        $retry_delay = 3;
+        for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
+            try {
+                $client->put($url, [
+                    'headers' => self::getToken($account->id, true),
+                    'json' => $body,
+                ]);
+                return;
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                $status = $e->getResponse()->getStatusCode();
+                $body_content = (string) $e->getResponse()->getBody();
+                if ($status === 429 && strpos($body_content, 'ReferencedResourceNotProvisioned') !== false && $attempt < $max_retries) {
+                    sleep($retry_delay * $attempt);
+                    continue;
+                }
+                throw $e;
+            }
+        }
     }
 
     public static function createAzureVm($client, $account, $vm_name, $vm_config, $vm_image, $interfaces, $location)
