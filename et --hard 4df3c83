@@ -1,0 +1,259 @@
+[33m381daec[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m Revert "1.2.47"
+[33m1d5ce91[m 1.2.47
+[33m8199111[m 1.2.46
+[33m23b570d[m 1.2.45
+[33m4df3c83[m 1.2.44
+[33m8b5280c[m 1.2.43
+[33m81e9b9b[m 1.2.42
+[33m5b41349[m Update azpanel-modern.css
+[33mf7f03b6[m Update azpanel-modern.css
+[33m29a35e0[m 1.2.39
+[33m2f7aedb[m 1.2.38
+[33mb90cd41[m 1.2.37
+[33m436f854[m 1.2.36
+[33m5807dc7[m 1.2.35
+[33m30a9226[m 1.2.34
+[33m93937f2[m v.1.2.33
+[33m05d7b48[m v.1.2.32
+[33m82ef055[m 1.0.2
+[33mffb5f6b[m 1.0.1
+[33m95c1e92[m[33m ([m[1;31mupstream/master[m[33m, [m[1;31mupstream/HEAD[m[33m)[m fix
+[33md523df7[m fix
+[33m4e4db9e[m update
+[33mcfe7994[m 更新系统镜像版本年份编号
+[33m41696a1[m 添加 Standard_B2pts_v2 和 Standard_B2ats_v2 机型
+[33mebbf4ce[m 记录错误堆栈
+[33m2582c82[m Update package version requirements
+[33m2526a2a[m fix statistics failure problem
+[33m7331b29[m fix issue #60
+[33m94ff6dc[m improve
+[33mccbe47f[m format html files
+[33m4636878[m fix issue #57
+[33me48e96a[m issue #58
+[33mdcccfda[m update php version require
+[33m9b1cc22[m add create azure vm socks5 proxy
+[33mcc7a885[m fix
+[33m25b8599[m fix
+[33m49af1dc[m Merge branch 'master' of https://github.com/azpanel/azpanel
+[33m1a02b86[m improve code
+[33m048b9fd[m fix
+[33m40b84a7[m Update 20220323132130_custom_website.php
+[33m67ea729[m fix code issue
+[33mad609f9[m Merge branch 'master' of https://github.com/azpanel/azpanel
+[33mee1dfb8[m fix aws create log record
+[33me3b55a4[m Update README.md
+[33m754d9ee[m Update README.md
+[33m32300dd[m php7 support
+[33m5d848c6[m fix hidden
+[33m15949bf[m fix
+[33m54570df[m support create aws server
+[33mdfcaf1c[m add script
+[33m82b6713[m fix config model obtain method
+[33m1674ab0[m fix
+[33m3f724bc[m Merge pull request #55 from SkyAerope/master
+[33mfb70ba7[m 补上查询价格按钮代码
+[33mbf24e8d[m 增加查询价格功能
+[33mf52a2b1[m handle authentication 401 case
+[33m70a75ea[m update upgrade.sh
+[33m3d85a9b[m update upgrade.sh
+[33m3210d7c[m fix
+[33m9177a2e[m standardize the code
+[33m023ab1d[m php8 support
+[33m2f69ba6[m Fix fixed array subscripts, resulting in data mismatch issues
+[33mb4ba4ad[m fix
+[33md297230[m cumulative improvement
+[33m2d299d0[m add ubuntu 22.04 system image
+[33mfc8f0a0[m fix
+[33m6a7f5a2[m improve
+[33m6e80aab[m fix
+[33mada1509[m fix
+[33mf0d6c49[m fix the error cannot be recorded when changing ip
+[33m3b6dc90[m update docs
+[33m69bfa21[m cancel the quantity setting when creating
+[33m5a9d5e3[m avoid messy typography
+[33m14136f4[m improve
+[33m849fca1[m fix
+[33m10a0d2e[m fix
+[33m245c166[m ignore ssl certificate issues
+[33m7f7da54[m Update UserAzure.php
+[33m0bc8976[m fix
+[33me94883b[m add share function
+[33m89cb5aa[m add language declaration
+[33mf8a650f[m Improve create page
+[33m8988c9f[m fix
+[33m2606228[m fix
+[33m608a0e0[m add ipv6
+[33m1d0805e[m perfect creation check
+[33m9665c48[m simplify push content
+[33m5d317fd[m ignore VM sizes over 16 cores
+[33m62ae83a[m retype virtual machine creation page
+[33m5559b29[m add initial system list
+[33m66f7e3d[m fix
+[33m2d81958[m fix
+[33mce763cb[m improve
+[33m16b795d[m fix
+[33m5385b56[m adjust page layout
+[33ma64d87d[m create a page to load the available virtual machine size
+[33mc0051e9[m fix
+[33m95cd788[m add account recycle bin function
+[33m41da343[m improve the function of adding an account
+[33mdf0f0be[m add copy and extract api command button to documentation page
+[33m15cd94c[m default refresh for uncommon subscription types
+[33mad14a1b[m add hcaptcha
+[33mc6ae544[m fix
+[33m26257f9[m the account resource list shows the virtual machine ip
+[33m66c8b2c[m fix
+[33m6198d1b[m get task status independently
+[33m6a4dcb5[m enhanced refresh function
+[33m78d2228[m account search function
+[33ma402fe3[m enhanced synchronous parsing function
+[33mc221ec3[m captcha function
+[33m547f805[m fix
+[33m4b83553[m update upgrade.sh
+[33m35e37a3[m fix
+[33m2bff767[m fix
+[33m97bc6d5[m fix add check
+[33mb6a1c11[m fix layout
+[33m8c7e4b1[m fix check ip function
+[33m1ccd8e9[m The virtual machine chart page displays the cumulative traffic usage
+[33m7f64214[m perfect flow control
+[33m5880e66[m update tips
+[33m2308f09[m Improve the cost estimation function
+[33m1a45d78[m cumulative update
+[33m3e0a648[m add site report page
+[33m08bada6[m fix
+[33mdaf426b[m Merge branch 'master' of https://github.com/azpanel/azpanel
+[33m99b1e1f[m Estimated account consumption function
+[33ma1338ef[m Add dns resolution synchronization function
+[33m1555629[m Merge pull request #27 from aiastia/patch-3
+[33me2c884a[m Update UserAzure.php
+[33m94b853f[m the push contains a list of affected virtual machines
+[33md586cad[m fix
+[33m235d09a[m update docs
+[33ma1fdeee[m add index to ssh_key table
+[33m1008616[m support using ssh key as login credentials
+[33ma898def[m perfect creation detection
+[33m7ebdc7e[m issue #17
+[33m57871a0[m fix resizing hard drive
+[33m5e5c456[m add database import prompt
+[33m683913e[m set the correct rendering language
+[33m00e0e35[m add notes
+[33m333f74a[m cumulative update
+[33mc79b840[m fix tr display problem
+[33me3a6094[m fix support server list search
+[33mda00b9e[m support server list search
+[33m4fb635a[m fix ip display problem
+[33md9c4887[m fix
+[33m2609a0d[m improve
+[33m6ffe5fd[m custom website bottom text and scripts
+[33m1ed6ab5[m page revise
+[33m0687288[m Merge pull request #12 from aiastia/patch-1
+[33m1e61ea5[m Update UserAzure.php
+[33mac33420[m Merge pull request #11 from iddddg/master
+[33m15205a5[m fix trafficControlStart
+[33m0f7654d[m update upgrade.sh
+[33mf4c02b9[m continue to improve flow control
+[33mc14a71d[m perfect flow control
+[33m504cb40[m amend previous commit
+[33m47abcd9[m azure virtual machine traffic control
+[33mc8a9660[m improve the inspection process when creating a virtual machine
+[33m539e8f1[m improve
+[33m4620394[m fix
+[33mcffed53[m fix
+[33md1c9841[m fix
+[33ma1edb30[m adjust wait time
+[33m4b7661c[m fix
+[33m61d43d2[m fix ajax
+[33ma4f514d[m fix
+[33m5b90eac[m fix
+[33mae89297[m fix html
+[33m63ce0ff[m improve
+[33m9e658a8[m check cpu core quota when creating virtual machine
+[33mdd5680a[m check quotas when creating virtual machines
+[33mc3c8da4[m improve viewing task parameters
+[33m617ca65[m can view task parameters
+[33m08c0518[m improve resource group detection before creation
+[33m70b55fa[m record the error of the task failure
+[33m53dbda2[m automatically close timed out tasks
+[33mc695ff9[m record task parameters
+[33mf2d84be[m fix tier parameter that may not exist
+[33m4111f9e[m display virtual machine hard disk details
+[33m4533b95[m perfect details
+[33m36e932c[m fix html
+[33m88c6bbe[m add hint
+[33mf6881e8[m add hint
+[33m2396578[m add migration file
+[33mf5c120a[m discern Azure 3500
+[33md00285d[m can query subscription quota
+[33me676026[m add the function of adjusting the hard disk layer
+[33mf5899cb[m add resizing hard disk function
+[33m74c6ece[m provide ddns by default
+[33m8cf5503[m reserve getQuota method
+[33m5504a09[m perfect subscription acquisition
+[33mf45e5c7[m optimize memory usage
+[33mdfc9369[m modify the length of the email field
+[33m2c2c8ae[m Update azure.sql
+[33me9f0178[m issue 5
+[33mc521f47[m fix
+[33m1e1bc54[m fix
+[33m66eef56[m Retype html and improve push settings
+[33m02c4da9[m added create virtual machine script prompt
+[33m476c067[m add routing and ajax code
+[33m0238c42[m accelerated networking is enabled by default
+[33m2a27ee8[m add auto refresh subscription feature
+[33m5db24b6[m add user table index
+[33mced3b8c[m random default user to avoid malicious scanning
+[33md1cdd13[m better display of errors
+[33m02afc64[m fix
+[33mc40182f[m same name resource group detection
+[33m577b5ed[m admin can now view site logs
+[33m202c7f5[m limit creation wait time
+[33m7e742a4[m fix safari layout
+[33m74b7b52[m update upgrade.sh
+[33m667d5a3[m Create php.yml
+[33m93f4c9c[m update version number
+[33m9d8190e[m update upgrade.sh script
+[33m672af3d[m update upgrade.sh script
+[33mb976c39[m update upgrade.sh script
+[33m2f24d24[m add version file
+[33m965c3e1[m update upgrade.sh script
+[33m8a27f04[m fix upgrade script
+[33mcdd2787[m add specs
+[33me33a1c8[m log virtual machine changes
+[33m6981f9f[m allow virtual machines to resize
+[33m3b988e6[m remove virtual machines from the list when a resource group is deleted
+[33m5828139[m add script execution color
+[33mf7f6039[m add migration file
+[33me83dc2b[m use migration management
+[33m328318b[m add try-catch statement
+[33m57bf6a5[m compact typography
+[33m01ee13d[m format create azure vm html
+[33mddf3331[m allows quick creation in the account list
+[33m522745c[m fix the bug that traffic statistics may fail
+[33ma710102[m more parameters can be shared
+[33m6703fd9[m resource group list can now view all virtual machines
+[33m18d6110[m fix ubuntu images
+[33m3b78f62[m add more windows server imasges
+[33m04d6e25[m fix the disk size check
+[33mba05300[m count in reverse order
+[33md81dda8[m If using cdn, get real ip
+[33m646f3cd[m set default paginate value
+[33mca214e8[m add page turning function to server list
+[33m3b1875b[m add page turning function to account list
+[33m2aa3231[m add waiting animation
+[33m32be952[m improve hard disk size detection
+[33m8e82044[m Update README.md
+[33m913e460[m Add files via upload
+[33m3370ba9[m Create README.md
+[33m347d395[m add asset template file
+[33ma4cfcfb[m combine display assets
+[33m99c4d73[m easy to share azure api
+[33m85e5cff[m add create windows disk check
+[33mee9d6b0[m fix html
+[33m2b169da[m fix auto recognition
+[33m0d4889e[m add windows images
+[33m45ec48c[m Merge remote-tracking branch 'refs/remotes/origin/master'
+[33mb0429a9[m fix centos images
+[33m0924062[m Update README.md
+[33m430d5b6[m Update README.md
+[33m66db294[m first commit
