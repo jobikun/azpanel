@@ -225,24 +225,14 @@ class UserAzureServer extends UserBase
         } */
 
         // 创建http会话
-        if (input('socks5_switch') === 'true') {
-            $socks5_addr = input('socks5_address/s');
-            $socks5_port = input('socks5_port/d');
-            $socks5_user = input('socks5_user/s');
-            $socks5_passwd = input('socks5_passwd/s');
-
-            $create_params = [];
-            $create_params['timeout'] = 5;
-
-            if ($socks5_user !== '' && $socks5_passwd !== '') {
-                $create_params['proxy']['socks5'] = "{$socks5_user}:{$socks5_passwd}@{$socks5_addr}:{$socks5_port}";
+        try {
+            if (input('socks5_switch') === 'true') {
+                $client = new Client(ProxyController::createGuzzleOptions(ProxyController::createSocks5ProxyUrlFromInput()));
             } else {
-                $create_params['proxy'] = "socks5://{$socks5_addr}:{$socks5_port}";
+                $client = new Client();
             }
-
-            $client = new Client($create_params);
-        } else {
-            $client = new Client();
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '创建失败', $e->getMessage()));
         }
 
         // 初始化创建任务
@@ -272,7 +262,7 @@ class UserAzureServer extends UserBase
 
         UserTask::update($task_id, (++$progress / $steps), '正在检查订阅状态');
         try {
-            $sub_info = AzureApi::getAzureSubscription($account->id); // array
+            $sub_info = AzureApi::getAzureSubscription($account->id, $client); // array
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', $e->getMessage()));
         }
@@ -321,7 +311,7 @@ class UserAzureServer extends UserBase
 
         // 资源组检查
         UserTask::update($task_id, (++$progress / $steps), '正在检查资源组');
-        $resource_groups = AzureApi::getAzureResourceGroupsList($account->id, $account->az_sub_id);
+        $resource_groups = AzureApi::getAzureResourceGroupsList($account->id, $account->az_sub_id, $client);
         foreach ($resource_groups['value'] as $resource_group) {
             foreach ($names as $name) {
                 $resource_group_name = $name . '_group';
@@ -338,7 +328,7 @@ class UserAzureServer extends UserBase
         UserTask::update($task_id, (++$progress / $steps), '正在检查配额');
         try {
             $sizes = AzureList::sizes();
-            $quotas = AzureApi::getQuota($account, $vm_location);
+            $quotas = AzureApi::getQuota($account, $vm_location, $client);
             if (!isset($sizes[$vm_size]['cpu'])) {
                 /* foreach ($limits['value'] as $limit)
                 {
@@ -519,12 +509,12 @@ class UserAzureServer extends UserBase
         do {
             sleep(2);
             ++$count;
-            $vm_status = AzureApi::getAzureVirtualMachineStatus($account->id, $vm_url);
+            $vm_status = AzureApi::getAzureVirtualMachineStatus($account->id, $vm_url, $client);
             $status = $vm_status['statuses']['1']['code'] ?? 'null';
         } while ($status !== 'PowerState/running' && $count < 120);
 
         // 加载到虚拟机列表
-        AzureApi::getAzureVirtualMachines($account->id);
+        AzureApi::getAzureVirtualMachines($account->id, $client);
 
         // 同步解析
         if ((int) session('user_id') === (int) Config::obtain('ali_whitelist')) {

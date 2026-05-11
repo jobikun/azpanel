@@ -40,17 +40,23 @@ class AwsApi extends BaseController
         ])->toArray();
     }
 
-    public static function getQuota(string $region, string $ak, string $sk)
+    public static function getQuota(string $region, string $ak, string $sk, ?string $proxy_url = null)
     {
         try {
-            $client = new ServiceQuotasClient([
+            $request_params = [
                 'region' => $region,
                 'version' => 'latest',
                 'credentials' => [
                     'key' => $ak,
                     'secret' => $sk,
                 ],
-            ]);
+            ];
+
+            if ($proxy_url !== null) {
+                $request_params['http'] = ProxyController::createAwsHttpOptions($proxy_url);
+            }
+
+            $client = new ServiceQuotasClient($request_params);
 
             $result = $client->getServiceQuota([
                 'QuotaCode' => 'L-1216C47A',
@@ -68,7 +74,8 @@ class AwsApi extends BaseController
         string $access_key,
         string $secret_key,
         bool $use_proxy = false,
-        string $mode = 'quota'
+        string $mode = 'quota',
+        ?string $proxy_url = null
     ) {
         $request_params = [
             'region' => $region,
@@ -78,11 +85,8 @@ class AwsApi extends BaseController
                 'secret' => $secret_key,
             ],
         ];
-        if ($use_proxy) {
-            // $request_params['http'] = [
-            //     'proxy' => "socks5://{$proxy->addr}:{$proxy->port}",
-            //     'connect_timeout' => 5,
-            // ];
+        if ($use_proxy && $proxy_url !== null) {
+            $request_params['http'] = ProxyController::createAwsHttpOptions($proxy_url);
         }
         if ($mode === 'quota') {
             $client = new ServiceQuotasClient($request_params);

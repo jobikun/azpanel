@@ -149,7 +149,16 @@ class UserAwsServer extends UserBase
             return json(Tools::msg('0', '创建失败', '自定义脚本不需要以 #!/bin/bash 或 #!/bin/sh 开头，因为已经包含。可直接输入需要执行的代码。注意：部分命令可能需要 sudo'));
         }
         // 检查区域权限
-        $quota = AwsApi::getQuota($vm_location, $account->ak, $account->sk);
+        $proxy_url = null;
+        if (input('socks5_switch') === 'true') {
+            try {
+                $proxy_url = ProxyController::createSocks5ProxyUrlFromInput();
+            } catch (\Exception $e) {
+                return json(Tools::msg('0', '创建失败', $e->getMessage()));
+            }
+        }
+
+        $quota = AwsApi::getQuota($vm_location, $account->ak, $account->sk, $proxy_url);
         if ($quota === 'null') {
             return json(Tools::msg('0', '创建失败', '此账户在此区域可能未开通'));
         }
@@ -189,7 +198,7 @@ class UserAwsServer extends UserBase
                     'IpPermissions' => $this->getIpPermissions(),
                 ];
                 UserTask::update($task_id, (++$progress / $steps), '正在创建会话');
-                $client = AwsApi::createAWSClient($vm_location, $account->ak, $account->sk, false, 'ec2');
+                $client = AwsApi::createAWSClient($vm_location, $account->ak, $account->sk, $proxy_url !== null, 'ec2', $proxy_url);
                 if ($ipv6_network === 'true' && AwsApi::countRegionVpc($client, $vm_location) <= 4) {
                     UserTask::update($task_id, (++$progress / $steps), '正在创建具有 IPv6 的 EC2');
                     AwsApi::createIpv6EC2($client, $controller_params);
