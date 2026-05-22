@@ -87,8 +87,31 @@ class ProxyController extends UserBase
 
     public static function getProxyUrlFromInputOrDefault(?int $user_id = null): ?string
     {
-        if (input('socks5_switch') === 'true') {
+        $proxy_mode = input('proxy_mode/s', '');
+        $proxy_id = input('proxy_id/d', 0);
+        $user_id = $user_id ?? (int) session('user_id');
+
+        if ($proxy_mode === 'none') {
+            return null;
+        }
+
+        if ($proxy_mode === 'manual' || input('socks5_switch') === 'true') {
             return self::createSocks5ProxyUrlFromInput();
+        }
+
+        if ($proxy_id > 0 || str_starts_with($proxy_mode, 'pool:')) {
+            if ($proxy_id <= 0) {
+                $proxy_id = (int) substr($proxy_mode, 5);
+            }
+
+            $proxy = UserProxy::where('user_id', $user_id)
+                ->where('enabled', 1)
+                ->find($proxy_id);
+            if ($proxy === null) {
+                throw new \InvalidArgumentException('Selected proxy was not found or disabled.');
+            }
+
+            return self::createSocks5ProxyUrlFromRecord($proxy);
         }
 
         return self::getDefaultProxyUrl($user_id);
@@ -125,17 +148,14 @@ class ProxyController extends UserBase
     {
         try {
             $proxy_id = input('proxy_id/d', 0);
-            if ($proxy_id > 0) {
-                $proxy = UserProxy::where('user_id', session('user_id'))->find($proxy_id);
-                if ($proxy === null) {
-                    throw new \InvalidArgumentException('Proxy not found.');
-                }
-                $proxy_url = self::createSocks5ProxyUrlFromRecord($proxy);
+            $proxy_mode = input('proxy_mode/s', '');
+            if ($proxy_id > 0 || $proxy_mode !== '') {
+                $proxy_url = self::getProxyUrlFromInputOrDefault();
             } else {
                 $proxy_url = self::createSocks5ProxyUrlFromInput();
             }
 
-            $client = new Client(self::createGuzzleOptions($proxy_url));
+            $client = $proxy_url === null ? new Client(['timeout' => 5, 'connect_timeout' => 5]) : new Client(self::createGuzzleOptions($proxy_url));
             $response = $client->request('GET', 'https://myip.ipip.net');
             $statusCode = (int) $response->getStatusCode();
 

@@ -8,6 +8,7 @@ use app\controller\Tools;
 use app\controller\UserTask;
 use app\model\Aws;
 use app\model\User;
+use app\model\UserProxy;
 use Aws\Ec2\Ec2Client;
 use think\facade\View;
 use think\helper\Str;
@@ -46,10 +47,16 @@ class UserAwsServer extends UserBase
 
         $user = User::find(session('user_id'));
         $personalise = json_decode($user->personalise, true);
+        $proxies = UserProxy::where('user_id', session('user_id'))
+            ->where('enabled', 1)
+            ->order('is_default', 'desc')
+            ->order('id', 'desc')
+            ->select();
 
         View::assign([
             'accounts' => $accounts,
             'personalise' => $personalise,
+            'proxies' => $proxies,
             'disk_sizes' => [16, 32, 64, 128],
             'sizes' => AwsList::instanceSizes(),
             'images' => AwsList::instanceImage(),
