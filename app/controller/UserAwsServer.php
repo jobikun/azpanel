@@ -188,13 +188,18 @@ class UserAwsServer extends UserBase
         foreach ($names as $vm_name) {
             $name = $vm_name . date('YmdHis', time());
             try {
+                $images = AwsList::instanceImage();
+                if (!isset($images[$vm_image])) {
+                    throw new \RuntimeException('Invalid AWS image selected: ' . $vm_image);
+                }
+
                 $controller_params = [
                     'name' => $name,
                     'disk_size' => $vm_disk_size,
                     'size' => $specified_size === '' ? $vm_size : $specified_size,
                     'userDataRaw' => $this->generateScriptContent($vm_name, $vm_passwd, $vm_script),
-                    'imageName' => AwsList::instanceImage()[$vm_image]['imageName'],
-                    'imageOwner' => AwsList::instanceImage()[$vm_image]['imageOwner'],
+                    'imageName' => $images[$vm_image]['imageName'],
+                    'imageOwner' => $images[$vm_image]['imageOwner'],
                     'IpPermissions' => $this->getIpPermissions(),
                 ];
                 UserTask::update($task_id, (++$progress / $steps), '正在创建会话');
@@ -373,6 +378,59 @@ class UserAwsServer extends UserBase
             ]);
 
             return json(Tools::msg('1', '增加成功', "新 IPv4: {$public_ip}"));
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '增加失败', $e->getMessage()));
+        }
+    }
+
+    public function addIpv6()
+    {
+        $account_id = input('account_id/d');
+        $location = input('location/s');
+        $instance_id = input('instance_id/s');
+
+        $account = Aws::where('user_id', session('user_id'))->find($account_id);
+        if ($account === null) {
+            return json(Tools::msg('0', '增加失败', '账户未找到'));
+        }
+
+        try {
+            $client = $this->getAWSClient($location, $account->ak, $account->sk);
+            $result = $client->describeInstances([
+                'Filters' => [
+                    [
+                        'Name' => 'instance-id',
+                        'Values' => [$instance_id],
+                    ],
+                ],
+            ]);
+
+            $instance = $result['Reservations'][0]['Instances'][0] ?? null;
+            if ($instance === null) {
+                throw new \RuntimeException('Instance not found: ' . $instance_id);
+            }
+
+            $network_interface = $instance['NetworkInterfaces'][0] ?? null;
+            if ($network_interface === null) {
+                throw new \RuntimeException('No network interface found for instance ' . $instance_id . '.');
+            }
+
+            $vpc_id = $instance['VpcId'] ?? null;
+            $subnet_id = $instance['SubnetId'] ?? null;
+            $network_interface_id = $network_interface['NetworkInterfaceId'] ?? null;
+            if ($vpc_id === null || $subnet_id === null || $network_interface_id === null) {
+                throw new \RuntimeException('Missing VPC, subnet, or network interface information for instance ' . $instance_id . '.');
+            }
+
+            if (($network_interface['Ipv6Addresses'] ?? []) !== []) {
+                return json(Tools::msg('1', '增加成功', '该实例已有 IPv6: ' . $network_interface['Ipv6Addresses'][0]['Ipv6Address']));
+            }
+
+            AwsApi::ensureSubnetIpv6CidrBlock($client, $vpc_id, $subnet_id);
+            AwsApi::ensureRouteTableIpv6Route($client, $vpc_id, $subnet_id);
+            $ipv6 = AwsApi::assignIpv6Addresses($client, $network_interface_id);
+
+            return json(Tools::msg('1', '增加成功', '新增 IPv6: ' . $ipv6));
         } catch (\Exception $e) {
             return json(Tools::msg('0', '增加失败', $e->getMessage()));
         }

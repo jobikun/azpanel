@@ -127,7 +127,7 @@ class AwsList
             ],
             'ubuntu-24.04' => [
                 'imageOwner' => '099720109477',
-                'imageName' => 'ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*',
+                'imageName' => 'ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*',
             ],
             'al2023' => [
                 'imageOwner' => '137112412989',

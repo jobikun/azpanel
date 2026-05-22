@@ -160,7 +160,11 @@
                             row.append($('<td></td>').text(instance.InstanceType));  // 虚拟机规格
                             row.append($('<td></td>').text(instance.State.Name));  // 虚拟机状态
                             row.append($('<td></td>').text(instance.PublicIpAddress));  // 虚拟机 ipv4 地址
-                            row.append($('<td></td>').text(instance?.Ipv6Address ?? ''));  // 虚拟机 ipv6 地址
+                            var ipv6Addresses = (instance.NetworkInterfaces || [])
+                                .flatMap(networkInterface => networkInterface.Ipv6Addresses || [])
+                                .map(ipv6 => ipv6.Ipv6Address)
+                                .join(', ');
+                            row.append($('<td></td>').text(ipv6Addresses));  // 虚拟机 ipv6 地址
                             row.append($('<td></td>').text(instance.PlatformDetails));  // 虚拟机类别
                             row.append($('<td></td>').text(formattedDate));  // 虚拟机创建时间
                             // 操作按钮
@@ -170,11 +174,15 @@
                                 addBtn.on('click', function() {
                                     addAwsIpv4(instId, accId, loc);
                                 });
+                                var addIpv6Btn = $('<button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" style="font-size:12px;min-height:28px;line-height:28px">增加 IPv6</button>');
+                                addIpv6Btn.on('click', function() {
+                                    addAwsIpv6(instId, accId, loc);
+                                });
                                 var changeBtn = $('<button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" style="font-size:12px;min-height:28px;line-height:28px">更换 IPv4</button>');
                                 changeBtn.on('click', function() {
                                     changeAwsIp(instId, accId, loc);
                                 });
-                                btnGroup.append(addBtn, changeBtn);
+                                btnGroup.append(addBtn, addIpv6Btn, changeBtn);
                                 row.append($('<td></td>').append(btnGroup));
                             })(instance.InstanceId, account, $('#location').val());
                             tbody.append(row);
@@ -272,6 +280,31 @@
                         } else {
                             mdui.alert(data.content, data.title);
                         }
+                    }
+                });
+            },
+            function () { },
+            {
+                confirmText: "确定",
+                cancelText: "取消",
+            }
+        );
+    }
+
+    function addAwsIpv6(instanceId, accountId, location) {
+        mdui.confirm('将为实例 ' + instanceId + ' 增加一个公网 IPv6 地址', '增加确认',
+            function () {
+                $.ajax({
+                    method: 'POST',
+                    url: "/user/server/aws/addipv6",
+                    dataType: "json",
+                    data: {
+                        instance_id: instanceId,
+                        account_id: accountId,
+                        location: location,
+                    },
+                    success: function (data) {
+                        mdui.alert(data.content, data.title);
                     }
                 });
             },

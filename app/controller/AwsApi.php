@@ -140,7 +140,14 @@ class AwsApi extends BaseController
                 $imageOwner,
             ],
         ]);
-        return $result['Images'][0]['ImageId'];
+        $images = $result['Images'] ?? [];
+        if ($images === []) {
+            throw new \RuntimeException('No AWS AMI found for image "' . $imageName . '" with owner "' . $imageOwner . '" in the selected region.');
+        }
+
+        usort($images, static fn ($a, $b) => strcmp($b['CreationDate'] ?? '', $a['CreationDate'] ?? ''));
+
+        return $images[0]['ImageId'];
     }
 
     public static function createKeyPair(object $session, string $name): void
@@ -300,7 +307,50 @@ class AwsApi extends BaseController
                 $vpc_id,
             ],
         ]);
-        return $result['Vpcs'][0]['Ipv6CidrBlockAssociationSet'][0]['Ipv6CidrBlock'];
+        foreach ($result['Vpcs'][0]['Ipv6CidrBlockAssociationSet'] ?? [] as $association) {
+            if (($association['Ipv6CidrBlockState']['State'] ?? null) === 'associated') {
+                return $association['Ipv6CidrBlock'];
+            }
+        }
+
+        throw new \RuntimeException('No associated IPv6 CIDR block found for VPC ' . $vpc_id . '.');
+    }
+
+    public static function ensureVpcIpv6CidrBlock(object $session, string $vpc_id): string
+    {
+        try {
+            return self::getIpv6CidrBlock($session, $vpc_id);
+        } catch (\RuntimeException $e) {
+            $result = $session->describeVpcs([
+                'VpcIds' => [
+                    $vpc_id,
+                ],
+            ]);
+            $has_pending_association = false;
+            foreach ($result['Vpcs'][0]['Ipv6CidrBlockAssociationSet'] ?? [] as $association) {
+                if (($association['Ipv6CidrBlockState']['State'] ?? null) !== 'disassociated') {
+                    $has_pending_association = true;
+                    break;
+                }
+            }
+
+            if (!$has_pending_association) {
+                $session->associateVpcCidrBlock([
+                    'AmazonProvidedIpv6CidrBlock' => true,
+                    'VpcId' => $vpc_id,
+                ]);
+            }
+        }
+
+        for ($i = 0; $i < 30; $i++) {
+            try {
+                return self::getIpv6CidrBlock($session, $vpc_id);
+            } catch (\RuntimeException $e) {
+                sleep(2);
+            }
+        }
+
+        throw new \RuntimeException('Timed out waiting for VPC IPv6 CIDR block association.');
     }
 
     public static function calculatingIpv6Subnets(string $ipv6_cidr): string
@@ -313,12 +363,98 @@ class AwsApi extends BaseController
         return $subnets_64[array_rand($subnets_64)];
     }
 
+    public static function getAvailableIpv6SubnetCidr(object $session, string $vpc_id, string $ipv6_cidr): string
+    {
+        $result = $session->describeSubnets([
+            'Filters' => [
+                [
+                    'Name' => 'vpc-id',
+                    'Values' => [
+                        $vpc_id,
+                    ],
+                ],
+            ],
+        ]);
+
+        $used = [];
+        foreach ($result['Subnets'] ?? [] as $subnet) {
+            foreach ($subnet['Ipv6CidrBlockAssociationSet'] ?? [] as $association) {
+                if (($association['Ipv6CidrBlockState']['State'] ?? null) !== 'disassociated') {
+                    $used[$association['Ipv6CidrBlock']] = true;
+                }
+            }
+        }
+
+        $networks = \IPTools\Network::parse($ipv6_cidr)->moveTo('64');
+        foreach ($networks as $network) {
+            $cidr = (string) $network;
+            if (!isset($used[$cidr])) {
+                return $cidr;
+            }
+        }
+
+        throw new \RuntimeException('No available IPv6 /64 subnet CIDR found in VPC ' . $vpc_id . '.');
+    }
+
+    public static function getSubnetIpv6CidrBlock(object $session, string $subnet_id): ?string
+    {
+        $result = $session->describeSubnets([
+            'SubnetIds' => [
+                $subnet_id,
+            ],
+        ]);
+
+        foreach ($result['Subnets'][0]['Ipv6CidrBlockAssociationSet'] ?? [] as $association) {
+            if (($association['Ipv6CidrBlockState']['State'] ?? null) === 'associated') {
+                return $association['Ipv6CidrBlock'];
+            }
+        }
+
+        return null;
+    }
+
     public static function associateSubnetCidrBlock(object $session, string $use_ipv6_subnet, string $subnet_id): void
     {
         $session->associateSubnetCidrBlock([
             'Ipv6CidrBlock' => $use_ipv6_subnet,
             'SubnetId' => $subnet_id,
         ]);
+    }
+
+    public static function ensureSubnetIpv6CidrBlock(object $session, string $vpc_id, string $subnet_id): string
+    {
+        $subnet_cidr = self::getSubnetIpv6CidrBlock($session, $subnet_id);
+        if ($subnet_cidr !== null) {
+            return $subnet_cidr;
+        }
+
+        $result = $session->describeSubnets([
+            'SubnetIds' => [
+                $subnet_id,
+            ],
+        ]);
+        $has_pending_association = false;
+        foreach ($result['Subnets'][0]['Ipv6CidrBlockAssociationSet'] ?? [] as $association) {
+            if (($association['Ipv6CidrBlockState']['State'] ?? null) !== 'disassociated') {
+                $has_pending_association = true;
+                break;
+            }
+        }
+
+        if (!$has_pending_association) {
+            $vpc_cidr = self::ensureVpcIpv6CidrBlock($session, $vpc_id);
+            self::associateSubnetCidrBlock($session, self::getAvailableIpv6SubnetCidr($session, $vpc_id, $vpc_cidr), $subnet_id);
+        }
+
+        for ($i = 0; $i < 30; $i++) {
+            $subnet_cidr = self::getSubnetIpv6CidrBlock($session, $subnet_id);
+            if ($subnet_cidr !== null) {
+                return $subnet_cidr;
+            }
+            sleep(2);
+        }
+
+        throw new \RuntimeException('Timed out waiting for subnet IPv6 CIDR block association.');
     }
 
     public static function assignIpv6Addresses(object $session, string $NetworkInterfaceId): string
@@ -328,6 +464,68 @@ class AwsApi extends BaseController
             'Ipv6AddressCount' => 1,
         ]);
         return $result['AssignedIpv6Addresses'][0];
+    }
+
+    public static function ensureRouteTableIpv6Route(object $session, string $vpc_id, string $subnet_id): void
+    {
+        $route_table_id = self::getRouteTableIdForSubnet($session, $vpc_id, $subnet_id);
+
+        $route_table = $session->describeRouteTables([
+            'RouteTableIds' => [
+                $route_table_id,
+            ],
+        ]);
+        foreach ($route_table['RouteTables'][0]['Routes'] ?? [] as $route) {
+            if (($route['DestinationIpv6CidrBlock'] ?? null) === '::/0') {
+                return;
+            }
+        }
+
+        $internet_gateway_id = self::describeInternetGateways($session, $vpc_id);
+        $session->createRoute([
+            'DestinationIpv6CidrBlock' => '::/0',
+            'GatewayId' => $internet_gateway_id,
+            'RouteTableId' => $route_table_id,
+        ]);
+    }
+
+    public static function getRouteTableIdForSubnet(object $session, string $vpc_id, string $subnet_id): string
+    {
+        $result = $session->describeRouteTables([
+            'Filters' => [
+                [
+                    'Name' => 'association.subnet-id',
+                    'Values' => [
+                        $subnet_id,
+                    ],
+                ],
+            ],
+        ]);
+        if (($result['RouteTables'] ?? []) !== []) {
+            return $result['RouteTables'][0]['RouteTableId'];
+        }
+
+        $result = $session->describeRouteTables([
+            'Filters' => [
+                [
+                    'Name' => 'vpc-id',
+                    'Values' => [
+                        $vpc_id,
+                    ],
+                ],
+                [
+                    'Name' => 'association.main',
+                    'Values' => [
+                        'true',
+                    ],
+                ],
+            ],
+        ]);
+        if (($result['RouteTables'] ?? []) !== []) {
+            return $result['RouteTables'][0]['RouteTableId'];
+        }
+
+        throw new \RuntimeException('No route table found for subnet ' . $subnet_id . '.');
     }
 
     public static function describeRouteTables(object $session, string $vpc_id): string
