@@ -1,0 +1,62 @@
+{include file="../app/view/user/header.html" title="添加 Linode 账户" /}
+
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">添加 Linode 账户</h1>
+            <p class="az-page-subtitle">使用 Linode Personal Access Token 接入账户。</p>
+        </div>
+    </div>
+
+    <div class="mdui-card mdui-m-t-2" style="overflow: visible">
+        <div class="mdui-card-content mdui-container">
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">bookmark</i>
+                    <label class="mdui-textfield-label">名称</label>
+                    <input class="mdui-textfield-input" id="label">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">vpn_key</i>
+                    <label class="mdui-textfield-label">Token</label>
+                    <input class="mdui-textfield-input" id="token">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">notes</i>
+                    <label class="mdui-textfield-label">备注</label>
+                    <input class="mdui-textfield-input" id="mark">
+                </div>
+            </div>
+        </div>
+    </div>
+    <button id="save" class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">保存</button>
+</main>
+</body>
+
+<script>
+    $('#save').on('click', function () {
+        $.ajax({
+            method: 'POST',
+            url: '/user/linode',
+            data: {
+                label: $('#label').val(),
+                token: $('#token').val(),
+                mark: $('#mark').val(),
+            },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+                if (data.status == '1') {
+                    setTimeout("window.location = '/user/linode'", 1000);
+                }
+            }
+        });
+    });
+</script>
+{include file="../app/view/user/footer.html" /}
+
+</html>

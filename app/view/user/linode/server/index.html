@@ -1,0 +1,164 @@
+{include file="../app/view/user/header.html" title="Linode 虚拟机" /}
+
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">Linode 虚拟机</h1>
+            <p class="az-page-subtitle">加载实例列表，并执行开机、关机、重启、删除。</p>
+        </div>
+        <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/server/linode/create">
+            <i class="mdui-icon material-icons">add</i>&nbsp;创建虚拟机
+        </a>
+    </div>
+
+    <div class="mdui-rows">
+        <div class="mdui-col-sm-12 mdui-col-md-4">
+            <div class="mdui-m-t-2">
+                账户：<select id="account" class="mdui-select" mdui-select>
+                    {volist name="accounts" id="account"}
+                    <option value="{$account.id}">{$account.label}</option>
+                    {/volist}
+                </select>
+            </div>
+        </div>
+        <div class="mdui-col-sm-12 mdui-col-md-4">
+            <div class="mdui-m-t-2">
+                状态：<select id="status" class="mdui-select" mdui-select>
+                    <option value="all">全部</option>
+                    <option value="running">仅运行</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <button id="load" class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+        <i class="mdui-icon material-icons" style="color:white;">file_download</i>&nbsp;载入表格
+    </button>
+    <button data-action="boot" class="linode-action mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+        <i class="mdui-icon material-icons" style="color:white;">power_settings_new</i>&nbsp;开机
+    </button>
+    <button data-action="shutdown" class="linode-action mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+        <i class="mdui-icon material-icons" style="color:white;">flash_off</i>&nbsp;关机
+    </button>
+    <button data-action="reboot" class="linode-action mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+        <i class="mdui-icon material-icons" style="color:white;">refresh</i>&nbsp;重启
+    </button>
+
+    <div class="mdui-table-fluid-fixed mdui-m-t-2">
+        <table id="list" class="mdui-table mdui-table-selectable" style="border: none;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>名称</th>
+                    <th>规格</th>
+                    <th>状态</th>
+                    <th>IPv4</th>
+                    <th>IPv6</th>
+                    <th>区域</th>
+                    <th>创建于</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</main>
+</body>
+
+<script>
+    function selectedIds() {
+        var ids = [];
+        $('.mdui-table-row-selected').each(function () {
+            ids.push($(this).attr('data-id'));
+        });
+        return ids;
+    }
+
+    function renderRows(data) {
+        var tbody = $('#list tbody');
+        tbody.empty();
+        var instances = data.data || [];
+        var status = $('#status').val();
+        for (var i = 0; i < instances.length; i++) {
+            var item = instances[i];
+            if (status === 'running' && item.status !== 'running') {
+                continue;
+            }
+
+            var ipv4 = (item.ipv4 || []).join(', ');
+            var ipv6 = item.ipv6 || '';
+            var row = $('<tr data-id="' + item.id + '"></tr>');
+            row.append($('<td></td>').text(i + 1));
+            row.append($('<td></td>').text(item.label));
+            row.append($('<td></td>').text(item.type));
+            row.append($('<td></td>').text(item.status));
+            row.append($('<td></td>').text(ipv4));
+            row.append($('<td></td>').text(ipv6));
+            row.append($('<td></td>').text(item.region));
+            row.append($('<td></td>').text(item.created));
+            var del = $('<button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-pink">删除</button>');
+            del.on('click', function (id) {
+                return function () {
+                    deleteLinode(id);
+                };
+            }(item.id));
+            row.append($('<td></td>').append(del));
+            tbody.append(row);
+        }
+        mdui.updateTables();
+    }
+
+    $('#load').on('click', function () {
+        $.ajax({
+            method: 'GET',
+            url: '/user/server/linode/' + $('#account').val(),
+            dataType: 'json',
+            success: function (data) {
+                if (data.ret == 0) {
+                    return mdui.alert(data.msg, '加载失败');
+                }
+                renderRows(data);
+            }
+        });
+    });
+
+    $('.linode-action').on('click', function () {
+        var ids = selectedIds();
+        if (ids.length === 0) {
+            return mdui.alert('请先选择实例', '操作失败');
+        }
+
+        $.ajax({
+            method: 'PUT',
+            url: '/user/server/linode/' + $('#account').val(),
+            data: {
+                action: $(this).data('action'),
+                instances: ids,
+            },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+            }
+        });
+    });
+
+    function deleteLinode(id) {
+        mdui.confirm('确认删除这台 Linode 吗？此操作不可恢复。', '删除确认', function () {
+            $.ajax({
+                method: 'DELETE',
+                url: '/user/server/linode/' + id,
+                data: { account_id: $('#account').val() },
+                dataType: 'json',
+                success: function (data) {
+                    mdui.alert(data.content, data.title);
+                    if (data.status == '1') {
+                        $('#load').click();
+                    }
+                }
+            });
+        });
+    }
+</script>
+{include file="../app/view/user/footer.html" /}
+
+</html>

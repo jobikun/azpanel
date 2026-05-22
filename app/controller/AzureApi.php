@@ -35,7 +35,7 @@ class AzureApi extends BaseController
             $account_tenant_id = $account_configs['tenant'];
             $azure_token_url = 'https://login.microsoftonline.com/' . $account_tenant_id . '/oauth2/v2.0/token';
 
-            $client = $client ?? new Client();
+            $client = $client ?? ProxyController::createGuzzleClient();
             $result = $client->post($azure_token_url, [
                 'form_params' => [
                     'grant_type' => 'client_credentials',
@@ -75,7 +75,7 @@ class AzureApi extends BaseController
     {
         // https://docs.microsoft.com/zh-cn/rest/api/resources/subscriptions/list
 
-        $client = $client ?? new Client();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions?' . self::apiVersion(self::SUBSCRIPTIONS_API_VERSION);
         $result = $client->get($url, [
             'headers' => self::getToken($account_id, false, $client),
@@ -98,7 +98,7 @@ class AzureApi extends BaseController
     {
         // https://docs.microsoft.com/zh-cn/rest/api/resources/resource-groups/list
 
-        $client = $client ?? new Client();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $az_sub_id . '/resourcegroups?' . self::apiVersion(self::RESOURCES_API_VERSION);
         $result = $client->get($url, [
             'headers' => self::getToken($account_id, false, $client),
@@ -111,7 +111,7 @@ class AzureApi extends BaseController
     {
         // https://docs.microsoft.com/zh-cn/rest/api/resources/resources/list-by-resource-group
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourcegroups/' . $group_name . '/resources?' . self::apiVersion(self::RESOURCES_API_VERSION);
         $result = $client->get($url, [
             'headers' => self::getToken($account->id, false, $client),
@@ -142,7 +142,7 @@ class AzureApi extends BaseController
         // https://docs.microsoft.com/zh-cn/rest/api/virtualnetwork/network-interfaces/get
         // https://www.jianshu.com/p/0cf79f4973f7
 
-        $client = $client ?? new Client();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $subscription_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/networkInterfaces/' . $network_interface_name . '?' . self::apiVersion(self::NETWORK_API_VERSION) . '&%24expand=ipConfigurations%2FpublicIPAddress%2CnetworkSecurityGroup';
         $result = $client->get($url, [
             'headers' => self::getToken($account_id, false, $client),
@@ -155,7 +155,7 @@ class AzureApi extends BaseController
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/instance-view
 
-        $client = $client ?? new Client();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $request_url . '/instanceView?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $result = $client->get($url, [
             'headers' => self::getToken($account_id, false, $client),
@@ -171,7 +171,7 @@ class AzureApi extends BaseController
         $count = 0;
         $azure_sub = Azure::find($account_id);
 
-        $client = $client ?? new Client();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $azure_sub->az_sub_id . '/providers/Microsoft.Compute/virtualMachines?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $result = $client->get($url, [
             'headers' => self::getToken($account_id, false, $client),
@@ -241,7 +241,7 @@ class AzureApi extends BaseController
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/list-all
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $az_sub_id . '/providers/Microsoft.Compute/virtualMachines?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $result = $client->get($url, [
             'headers' => self::getToken($account_id),
@@ -269,7 +269,7 @@ class AzureApi extends BaseController
         }
         $action = $actions[$action];
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $request_url . '/' . $action . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $client->post($url, [
             'headers' => self::getToken($account_id),
@@ -280,7 +280,7 @@ class AzureApi extends BaseController
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/deallocate
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $request_url . '/deallocate?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $client->post($url, [
             'headers' => self::getToken($account_id),
@@ -289,7 +289,7 @@ class AzureApi extends BaseController
 
     public static function deleteAzureResourcesGroup($account_id, $subscription_id, $resource_group_name)
     {
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $subscription_id . '/resourcegroups/' . $resource_group_name . '?' . self::apiVersion(self::RESOURCES_API_VERSION);
         $client->delete($url, [
             'headers' => self::getToken($account_id),
@@ -301,7 +301,7 @@ class AzureApi extends BaseController
         $group_url = explode('/', $url);
         $account = Azure::where('az_sub_id', $group_url['2'])->find();
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $url . '?' . self::apiVersion(self::RESOURCES_API_VERSION);
         $client->delete($url, [
             'headers' => self::getToken($account->id, false, $client),
@@ -807,7 +807,7 @@ class AzureApi extends BaseController
             $end_time = date('Y-m-d\T H:00:00\Z', time() - 25200);
         }
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $server->request_url . '/providers/Microsoft.Insights/metrics?api-version=2018-01-01&timespan=' . $start_time . '/' . $end_time . '&interval=PT1H&aggregation=total%2Caverage&metricnames=Percentage%20CPU%2CCPU%20Credits%20Remaining%2CAvailable%20Memory%20Bytes%2CNetwork%20In%20Total%2CNetwork%20Out%20Total';
         $result = $client->get($url, [
             'headers' => self::getToken($server->account_id, true),
@@ -831,7 +831,7 @@ class AzureApi extends BaseController
 
         $url = 'https://management.azure.com' . $request_url . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $client->put($url, [
             'headers' => self::getToken($account_id, true),
             'json' => $body,
@@ -866,7 +866,7 @@ class AzureApi extends BaseController
 
         $url = 'https://management.azure.com/subscriptions/' . $server->at_subscription_id . '/resourceGroups/' . $server->resource_group . '/providers/Microsoft.Compute/disks/' . $vm_disk_name . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $client->put($url, [
             'headers' => self::getToken($server->account_id, true),
             'json' => $body,
@@ -879,7 +879,7 @@ class AzureApi extends BaseController
 
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/providers/Microsoft.Capacity/resourceProviders/Microsoft.Compute/locations/' . $location . '/serviceLimits?' . self::apiVersion(self::CAPACITY_API_VERSION);
 
-        $client = $client ?? new Client();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $result = $client->get($url, [
             'headers' => self::getToken($account->id, true, $client),
         ]);
@@ -896,7 +896,7 @@ class AzureApi extends BaseController
 
         $url = 'https://management.azure.com/subscriptions/' . $server->at_subscription_id . '/resourceGroups/' . $server->resource_group . '/Providers/Microsoft.Compute/disks/' . $disk_name . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $result = $client->get($url, [
             'headers' => self::getToken($server->account_id, true),
         ]);

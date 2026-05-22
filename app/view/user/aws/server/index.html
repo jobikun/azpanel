@@ -169,20 +169,27 @@
                             row.append($('<td></td>').text(formattedDate));  // 虚拟机创建时间
                             // 操作按钮
                             (function(instId, accId, loc) {
-                                var btnGroup = $('<div style="display:flex;gap:4px"></div>');
-                                var addBtn = $('<button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" style="font-size:12px;min-height:28px;line-height:28px">增加 IPv4</button>');
-                                addBtn.on('click', function() {
+                                var safeId = instId.replace(/[^a-zA-Z0-9_-]/g, '');
+                                var btnGroup = $('<div style="display:flex;gap:4px;align-items:center"></div>');
+                                var ipv4MenuId = 'aws-ipv4-menu-' + safeId;
+                                var ipv6MenuId = 'aws-ipv6-menu-' + safeId;
+                                var ipv4Btn = $('<button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" style="font-size:12px;min-height:28px;line-height:28px" mdui-menu="{target: \'#' + ipv4MenuId + '\'}">IPv4 <i class="mdui-icon material-icons" style="font-size:16px;vertical-align:middle">arrow_drop_down</i></button>');
+                                var ipv6Btn = $('<button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" style="font-size:12px;min-height:28px;line-height:28px" mdui-menu="{target: \'#' + ipv6MenuId + '\'}">IPv6 <i class="mdui-icon material-icons" style="font-size:16px;vertical-align:middle">arrow_drop_down</i></button>');
+                                var ipv4Menu = $('<ul class="mdui-menu" id="' + ipv4MenuId + '"><li class="mdui-menu-item"><a href="javascript:void(0)" class="mdui-ripple js-add-ipv4">增加 IPv4</a></li><li class="mdui-menu-item"><a href="javascript:void(0)" class="mdui-ripple js-change-ipv4">更换 IPv4</a></li></ul>');
+                                var ipv6Menu = $('<ul class="mdui-menu" id="' + ipv6MenuId + '"><li class="mdui-menu-item"><a href="javascript:void(0)" class="mdui-ripple js-add-ipv6">增加 IPv6</a></li><li class="mdui-menu-item"><a href="javascript:void(0)" class="mdui-ripple js-change-ipv6">更换 IPv6</a></li></ul>');
+                                ipv4Menu.find('.js-add-ipv4').on('click', function() {
                                     addAwsIpv4(instId, accId, loc);
                                 });
-                                var addIpv6Btn = $('<button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" style="font-size:12px;min-height:28px;line-height:28px">增加 IPv6</button>');
-                                addIpv6Btn.on('click', function() {
-                                    addAwsIpv6(instId, accId, loc);
-                                });
-                                var changeBtn = $('<button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey" style="font-size:12px;min-height:28px;line-height:28px">更换 IPv4</button>');
-                                changeBtn.on('click', function() {
+                                ipv4Menu.find('.js-change-ipv4').on('click', function() {
                                     changeAwsIp(instId, accId, loc);
                                 });
-                                btnGroup.append(addBtn, addIpv6Btn, changeBtn);
+                                ipv6Menu.find('.js-add-ipv6').on('click', function() {
+                                    addAwsIpv6(instId, accId, loc);
+                                });
+                                ipv6Menu.find('.js-change-ipv6').on('click', function() {
+                                    changeAwsIpv6(instId, accId, loc);
+                                });
+                                btnGroup.append(ipv4Btn, ipv4Menu, ipv6Btn, ipv6Menu);
                                 row.append($('<td></td>').append(btnGroup));
                             })(instance.InstanceId, account, $('#location').val());
                             tbody.append(row);
@@ -195,6 +202,7 @@
                     timeout: '1000'
                 });
                 mdui.updateTables();
+                mdui.mutation();
                 // 标记颜色
                 markColor();
             }
@@ -233,26 +241,26 @@
         mdui.$(id).on('click', handler);
     });
 
+    function postAwsAddressAction(url, instanceId, accountId, location) {
+        $.ajax({
+            method: 'POST',
+            url: url,
+            dataType: "json",
+            data: {
+                instance_id: instanceId,
+                account_id: accountId,
+                location: location,
+            },
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+            }
+        });
+    }
+
     function changeAwsIp(instanceId, accountId, location) {
         mdui.confirm('将为实例 ' + instanceId + ' 更换弹性公网 IPv4 地址（旧地址将被释放）', '更换确认',
             function () {
-                $.ajax({
-                    method: 'POST',
-                    url: "/user/server/aws/changeip",
-                    dataType: "json",
-                    data: {
-                        instance_id: instanceId,
-                        account_id: accountId,
-                        location: location,
-                    },
-                    success: function (data) {
-                        if (data.status == '0') {
-                            mdui.alert(data.content, data.title);
-                        } else {
-                            mdui.alert(data.content, data.title);
-                        }
-                    }
-                });
+                postAwsAddressAction("/user/server/aws/changeip", instanceId, accountId, location);
             },
             function () { },
             {
@@ -265,23 +273,7 @@
     function addAwsIpv4(instanceId, accountId, location) {
         mdui.confirm('将为实例 ' + instanceId + ' 增加一个弹性公网 IPv4 地址', '增加确认',
             function () {
-                $.ajax({
-                    method: 'POST',
-                    url: "/user/server/aws/addipv4",
-                    dataType: "json",
-                    data: {
-                        instance_id: instanceId,
-                        account_id: accountId,
-                        location: location,
-                    },
-                    success: function (data) {
-                        if (data.status == '0') {
-                            mdui.alert(data.content, data.title);
-                        } else {
-                            mdui.alert(data.content, data.title);
-                        }
-                    }
-                });
+                postAwsAddressAction("/user/server/aws/addipv4", instanceId, accountId, location);
             },
             function () { },
             {
@@ -294,19 +286,20 @@
     function addAwsIpv6(instanceId, accountId, location) {
         mdui.confirm('将为实例 ' + instanceId + ' 增加一个公网 IPv6 地址', '增加确认',
             function () {
-                $.ajax({
-                    method: 'POST',
-                    url: "/user/server/aws/addipv6",
-                    dataType: "json",
-                    data: {
-                        instance_id: instanceId,
-                        account_id: accountId,
-                        location: location,
-                    },
-                    success: function (data) {
-                        mdui.alert(data.content, data.title);
-                    }
-                });
+                postAwsAddressAction("/user/server/aws/addipv6", instanceId, accountId, location);
+            },
+            function () { },
+            {
+                confirmText: "确定",
+                cancelText: "取消",
+            }
+        );
+    }
+
+    function changeAwsIpv6(instanceId, accountId, location) {
+        mdui.confirm('将为实例 ' + instanceId + ' 更换公网 IPv6 地址（旧地址将被解绑）', '更换确认',
+            function () {
+                postAwsAddressAction("/user/server/aws/changeipv6", instanceId, accountId, location);
             },
             function () { },
             {

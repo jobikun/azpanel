@@ -466,6 +466,18 @@ class AwsApi extends BaseController
         return $result['AssignedIpv6Addresses'][0];
     }
 
+    public static function unassignIpv6Addresses(object $session, string $NetworkInterfaceId, array $ipv6_addresses): void
+    {
+        if ($ipv6_addresses === []) {
+            return;
+        }
+
+        $session->unassignIpv6Addresses([
+            'NetworkInterfaceId' => $NetworkInterfaceId,
+            'Ipv6Addresses' => $ipv6_addresses,
+        ]);
+    }
+
     public static function ensureRouteTableIpv6Route(object $session, string $vpc_id, string $subnet_id): void
     {
         $route_table_id = self::getRouteTableIdForSubnet($session, $vpc_id, $subnet_id);

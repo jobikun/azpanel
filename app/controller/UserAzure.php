@@ -154,7 +154,7 @@ class UserAzure extends UserBase
                     $account->save();
                 }
 
-                $client = new Client();
+                $client = ProxyController::createGuzzleClient();
                 $count = AzureApi::getAzureVirtualMachines($account->id);
                 if ($count !== 0) {
                     $account->providers_register = 1;
@@ -352,7 +352,7 @@ class UserAzure extends UserBase
         $account->az_sub_updated_at = time();
         $account->save();
 
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $count = AzureApi::getAzureVirtualMachines($account->id);
         $content = $count !== 0 ? '加载了 ' . $count . ' 个资源' : '添加成功';
 
@@ -742,7 +742,7 @@ class UserAzure extends UserBase
         $location = input('location');
 
         if ($account->reg_capacity === 0) {
-            $client = new Client();
+            $client = ProxyController::createGuzzleClient();
             AzureApi::registerMainAzureProviders($client, $account, 'Microsoft.Capacity');
             $account->reg_capacity = 1;
             $account->save();

@@ -77,16 +77,22 @@ class UserAwsServer extends UserBase
         ];
     }
 
-    private static function getAWSClient(string $region, string $access_key, string $secret_key): object
+    private static function getAWSClient(string $region, string $access_key, string $secret_key, ?string $proxy_url = null): object
     {
-        return new Ec2Client([
+        $params = [
             'region' => $region,
             'version' => 'latest',
             'credentials' => [
                 'key' => $access_key,
                 'secret' => $secret_key,
             ],
-        ]);
+        ];
+
+        if ($proxy_url !== null) {
+            $params['http'] = ProxyController::createAwsHttpOptions($proxy_url);
+        }
+
+        return new Ec2Client($params);
     }
 
     private static function generateScriptContent(string $name, string $passwd, string $custom_script): string
@@ -149,13 +155,10 @@ class UserAwsServer extends UserBase
             return json(Tools::msg('0', '创建失败', '自定义脚本不需要以 #!/bin/bash 或 #!/bin/sh 开头，因为已经包含。可直接输入需要执行的代码。注意：部分命令可能需要 sudo'));
         }
         // 检查区域权限
-        $proxy_url = null;
-        if (input('socks5_switch') === 'true') {
-            try {
-                $proxy_url = ProxyController::createSocks5ProxyUrlFromInput();
-            } catch (\Exception $e) {
-                return json(Tools::msg('0', '创建失败', $e->getMessage()));
-            }
+        try {
+            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '创建失败', $e->getMessage()));
         }
 
         $quota = AwsApi::getQuota($vm_location, $account->ak, $account->sk, $proxy_url);
@@ -228,7 +231,7 @@ class UserAwsServer extends UserBase
     {
         $account = Aws::where('user_id', session('user_id'))->find($id);
         try {
-            $client = $this->getAWSClient(input('location/s'), $account->ak, $account->sk);
+            $client = $this->getAWSClient(input('location/s'), $account->ak, $account->sk, ProxyController::getDefaultProxyUrl());
             return json($client->describeInstances()->toArray());
         } catch (\Exception $e) {
             return json([
@@ -251,7 +254,7 @@ class UserAwsServer extends UserBase
             $location = input('location/s');
             $instances = input('instances/a');
 
-            $client = $this->getAWSClient($location, $account->ak, $account->sk);
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getDefaultProxyUrl());
             return json(AwsApi::manageInstances($client, $action, $instances));
         } catch (\Exception $e) {
             return json([
@@ -278,7 +281,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk);
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getDefaultProxyUrl());
 
             // 获取实例信息
             $result = $client->describeInstances([
@@ -352,7 +355,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk);
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getDefaultProxyUrl());
 
             // 分配弹性 IP
             [$public_ip, $allocation_id] = AwsApi::allocateAddress($client);
@@ -395,7 +398,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk);
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getDefaultProxyUrl());
             $result = $client->describeInstances([
                 'Filters' => [
                     [
@@ -433,6 +436,58 @@ class UserAwsServer extends UserBase
             return json(Tools::msg('1', '增加成功', '新增 IPv6: ' . $ipv6));
         } catch (\Exception $e) {
             return json(Tools::msg('0', '增加失败', $e->getMessage()));
+        }
+    }
+
+    public function changeIpv6()
+    {
+        $account_id = input('account_id/d');
+        $location = input('location/s');
+        $instance_id = input('instance_id/s');
+
+        $account = Aws::where('user_id', session('user_id'))->find($account_id);
+        if ($account === null) {
+            return json(Tools::msg('0', '更换失败', '账户未找到'));
+        }
+
+        try {
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getDefaultProxyUrl());
+            $result = $client->describeInstances([
+                'Filters' => [
+                    [
+                        'Name' => 'instance-id',
+                        'Values' => [$instance_id],
+                    ],
+                ],
+            ]);
+
+            $instance = $result['Reservations'][0]['Instances'][0] ?? null;
+            if ($instance === null) {
+                throw new \RuntimeException('Instance not found: ' . $instance_id);
+            }
+
+            $network_interface = $instance['NetworkInterfaces'][0] ?? null;
+            if ($network_interface === null) {
+                throw new \RuntimeException('No network interface found for instance ' . $instance_id . '.');
+            }
+
+            $vpc_id = $instance['VpcId'] ?? null;
+            $subnet_id = $instance['SubnetId'] ?? null;
+            $network_interface_id = $network_interface['NetworkInterfaceId'] ?? null;
+            if ($vpc_id === null || $subnet_id === null || $network_interface_id === null) {
+                throw new \RuntimeException('Missing VPC, subnet, or network interface information for instance ' . $instance_id . '.');
+            }
+
+            $old_ipv6_addresses = array_column($network_interface['Ipv6Addresses'] ?? [], 'Ipv6Address');
+            AwsApi::unassignIpv6Addresses($client, $network_interface_id, $old_ipv6_addresses);
+            AwsApi::ensureSubnetIpv6CidrBlock($client, $vpc_id, $subnet_id);
+            AwsApi::ensureRouteTableIpv6Route($client, $vpc_id, $subnet_id);
+            $new_ipv6 = AwsApi::assignIpv6Addresses($client, $network_interface_id);
+
+            $old_ipv6 = $old_ipv6_addresses === [] ? 'null' : implode(', ', $old_ipv6_addresses);
+            return json(Tools::msg('1', '更换成功', "旧 IPv6: {$old_ipv6}<br>新 IPv6: {$new_ipv6}"));
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '更换失败', $e->getMessage()));
         }
     }
 }

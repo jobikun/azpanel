@@ -226,10 +226,11 @@ class UserAzureServer extends UserBase
 
         // 创建http会话
         try {
-            if (input('socks5_switch') === 'true') {
-                $client = new Client(ProxyController::createGuzzleOptions(ProxyController::createSocks5ProxyUrlFromInput()));
+            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            if ($proxy_url !== null) {
+                $client = new Client(ProxyController::createGuzzleOptions($proxy_url));
             } else {
-                $client = new Client();
+                $client = ProxyController::createGuzzleClient();
             }
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', $e->getMessage()));
@@ -885,7 +886,7 @@ class UserAzureServer extends UserBase
             }
 
             $account = Azure::find($server->account_id);
-            $client = new Client();
+            $client = ProxyController::createGuzzleClient();
             $resource_group = $server->resource_group;
             $new_ip_name = $server->name . '_ipv4_add';
 
@@ -970,7 +971,7 @@ class UserAzureServer extends UserBase
         } */
 
         try {
-            $client = new Client();
+            $client = ProxyController::createGuzzleClient();
             $response = $client->post('https://www.vps234.com/ipcheck/getdata/', [
                 'form_params' => [
                     'idName' => 'itemblockid' . Tools::getUnixTimestamp(),
@@ -1154,7 +1155,7 @@ class UserAzureServer extends UserBase
         $vm_account = input('vm_account/s');
 
         $set = [];
-        $client = new Client();
+        $client = ProxyController::createGuzzleClient();
         $account = Azure::where('user_id', session('user_id'))->find($vm_account);
         $limits = AzureApi::getResourceSkusList($client, $account, $location);
 
@@ -1181,7 +1182,7 @@ class UserAzureServer extends UserBase
         $vm_sku = str_replace('Standard_', '', $vm_size);
 
         try {
-            $client = new Client();
+            $client = ProxyController::createGuzzleClient();
             $addr = "https://prices.azure.com/api/retail/prices?api-version=2021-10-01-preview";
             $query = "armRegionName eq '{$location}' and SkuName eq '{$vm_sku}' and priceType eq 'Consumption' and serviceName eq 'Virtual Machines' ";
             $url = $addr . '&' . http_build_query(['$filter' => $query]);

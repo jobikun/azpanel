@@ -1,0 +1,83 @@
+{include file="../app/view/user/header.html" title="Linode 账户" /}
+
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">Linode 账户</h1>
+            <p class="az-page-subtitle">管理 Linode Token 和账户状态。</p>
+        </div>
+        <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/linode/create">
+            <i class="mdui-icon material-icons">add</i>&nbsp;添加账户
+        </a>
+    </div>
+
+    <div class="mdui-table-fluid-fixed mdui-m-t-2">
+        <table class="mdui-table" style="border: none;">
+            <thead>
+                <tr>
+                    <th>操作</th>
+                    <th>#</th>
+                    <th>名称</th>
+                    <th>用户名</th>
+                    <th>邮箱</th>
+                    <th>备注</th>
+                    <th>创建于</th>
+                </tr>
+            </thead>
+            <tbody>
+                {volist name="accounts" id="account"}
+                <tr>
+                    <td>
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-blue-grey" onclick="refreshAccount({$account.id})">刷新</button>
+                        <a class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-indigo" href="/user/server/linode/create?id={$account.id}">创建</a>
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-pink" onclick="deleteAccount({$account.id})">删除</button>
+                    </td>
+                    <td>{$total--}</td>
+                    <td>{$account.label}</td>
+                    <td>{$account.username}</td>
+                    <td>{$account.email}</td>
+                    <td>{$account.mark}</td>
+                    <td>{:date('Y-m-d H:i:s', $account.created_at)}</td>
+                </tr>
+                {/volist}
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+
+<script>
+    function refreshAccount(id) {
+        $.ajax({
+            method: 'PUT',
+            url: '/user/linode/' + id,
+            data: { action: 'refresh' },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+                if (data.status == '1') {
+                    setTimeout("window.location = '/user/linode'", 1000);
+                }
+            }
+        });
+    }
+
+    function deleteAccount(id) {
+        mdui.confirm('确认删除这个 Linode 账户吗？', '删除确认', function () {
+            $.ajax({
+                method: 'DELETE',
+                url: '/user/linode/' + id,
+                dataType: 'json',
+                success: function (data) {
+                    mdui.alert(data.content, data.title);
+                    if (data.status == '1') {
+                        setTimeout("window.location = '/user/linode'", 1000);
+                    }
+                }
+            });
+        });
+    }
+</script>
+{include file="../app/view/user/footer.html" /}
+
+</html>

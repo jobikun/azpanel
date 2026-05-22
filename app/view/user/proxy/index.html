@@ -1,0 +1,187 @@
+{include file="../app/view/user/header.html" title="代理管理" /}
+
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">代理管理</h1>
+            <p class="az-page-subtitle">绑定到个人账号的 SOCKS5 代理，创建云主机时会自动读取默认代理。</p>
+        </div>
+    </div>
+
+    <div class="mdui-card mdui-m-t-2" style="overflow: visible">
+        <div class="mdui-card-content mdui-container">
+            <input type="hidden" id="proxy_id" value="0">
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">bookmark</i>
+                    <label class="mdui-textfield-label">名称</label>
+                    <input class="mdui-textfield-input" id="proxy_name">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">dns</i>
+                    <label class="mdui-textfield-label">地址</label>
+                    <input class="mdui-textfield-input" id="proxy_address">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">settings_input_component</i>
+                    <label class="mdui-textfield-label">端口</label>
+                    <input class="mdui-textfield-input" type="number" id="proxy_port" min="1" max="65535">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">person</i>
+                    <label class="mdui-textfield-label">用户名</label>
+                    <input class="mdui-textfield-input" id="proxy_username">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">lock</i>
+                    <label class="mdui-textfield-label">密码</label>
+                    <input class="mdui-textfield-input" id="proxy_password">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
+                <label class="mdui-checkbox">
+                    <input id="proxy_enabled" type="checkbox" checked>
+                    <i class="mdui-checkbox-icon"></i>
+                    启用
+                </label>
+                <label class="mdui-checkbox mdui-m-l-2">
+                    <input id="proxy_default" type="checkbox" checked>
+                    <i class="mdui-checkbox-icon"></i>
+                    默认代理
+                </label>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
+                <button id="save_proxy" class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">保存</button>
+                <button id="reset_proxy" class="mdui-btn mdui-btn-raised mdui-color-blue-grey mdui-ripple">清空</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mdui-table-fluid-fixed mdui-m-t-2">
+        <table class="mdui-table" style="border: none;">
+            <thead>
+                <tr>
+                    <th>操作</th>
+                    <th>#</th>
+                    <th>名称</th>
+                    <th>地址</th>
+                    <th>状态</th>
+                    <th>默认</th>
+                    <th>创建于</th>
+                </tr>
+            </thead>
+            <tbody>
+                {volist name="proxies" id="proxy"}
+                <tr data-id="{$proxy.id}" data-name="{$proxy.name}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-username="{$proxy.username}" data-password="{$proxy.password}" data-enabled="{$proxy.enabled}" data-default="{$proxy.is_default}">
+                    <td>
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-blue-grey" onclick="editProxy(this)">编辑</button>
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-indigo" onclick="testProxy({$proxy.id})">测试</button>
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-pink" onclick="deleteProxy({$proxy.id})">删除</button>
+                    </td>
+                    <td>{$total--}</td>
+                    <td>{$proxy.name}</td>
+                    <td>{$proxy.address}:{$proxy.port}</td>
+                    <td>{if $proxy.enabled == 1}启用{else /}停用{/if}</td>
+                    <td>{if $proxy.is_default == 1}是{else /}否{/if}</td>
+                    <td>{:date('Y-m-d H:i:s', $proxy.created_at)}</td>
+                </tr>
+                {/volist}
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+
+<script>
+    function formData() {
+        return {
+            name: $('#proxy_name').val(),
+            address: $('#proxy_address').val(),
+            port: $('#proxy_port').val(),
+            username: $('#proxy_username').val(),
+            password: $('#proxy_password').val(),
+            enabled: $('#proxy_enabled').prop('checked') ? 1 : 0,
+            is_default: $('#proxy_default').prop('checked') ? 1 : 0,
+        };
+    }
+
+    function resetForm() {
+        $('#proxy_id').val('0');
+        $('#proxy_name').val('');
+        $('#proxy_address').val('');
+        $('#proxy_port').val('');
+        $('#proxy_username').val('');
+        $('#proxy_password').val('');
+        $('#proxy_enabled').prop('checked', true);
+        $('#proxy_default').prop('checked', true);
+    }
+
+    $('#reset_proxy').on('click', resetForm);
+
+    $('#save_proxy').on('click', function () {
+        var id = $('#proxy_id').val();
+        $.ajax({
+            method: id === '0' ? 'POST' : 'PUT',
+            url: id === '0' ? '/user/proxy' : '/user/proxy/' + id,
+            data: formData(),
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+                if (data.status == '1') {
+                    setTimeout("window.location = '/user/proxy'", 1000);
+                }
+            }
+        });
+    });
+
+    function editProxy(that) {
+        var row = $(that).closest('tr');
+        $('#proxy_id').val(row.data('id'));
+        $('#proxy_name').val(row.data('name'));
+        $('#proxy_address').val(row.data('address'));
+        $('#proxy_port').val(row.data('port'));
+        $('#proxy_username').val(row.data('username'));
+        $('#proxy_password').val(row.data('password'));
+        $('#proxy_enabled').prop('checked', row.data('enabled') == 1);
+        $('#proxy_default').prop('checked', row.data('default') == 1);
+    }
+
+    function testProxy(id) {
+        $.ajax({
+            method: 'POST',
+            url: '/proxy/test',
+            data: { proxy_id: id },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.msg, data.status ? '代理可用' : '代理不可用');
+            }
+        });
+    }
+
+    function deleteProxy(id) {
+        mdui.confirm('确认删除这个代理吗？', '删除确认', function () {
+            $.ajax({
+                method: 'DELETE',
+                url: '/user/proxy/' + id,
+                dataType: 'json',
+                success: function (data) {
+                    mdui.alert(data.content, data.title);
+                    if (data.status == '1') {
+                        setTimeout("window.location = '/user/proxy'", 1000);
+                    }
+                }
+            });
+        });
+    }
+</script>
+{include file="../app/view/user/footer.html" /}
+
+</html>

@@ -1,0 +1,104 @@
+{include file="../app/view/user/header.html" title="创建 Linode 虚拟机" /}
+
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">创建 Linode 虚拟机</h1>
+            <p class="az-page-subtitle">选择账户、区域、镜像和规格创建 Linode 实例。</p>
+        </div>
+    </div>
+
+    <div class="mdui-card mdui-m-t-2" style="overflow: visible">
+        <div class="mdui-card-content mdui-container">
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">flag</i>
+                    <label class="mdui-textfield-label">名称，多个用英文逗号分隔</label>
+                    <input class="mdui-textfield-input" id="label">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">lock</i>
+                    <label class="mdui-textfield-label">root 密码</label>
+                    <input class="mdui-textfield-input" id="root_pass" value="{$personalise.vm_default_credentials}">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
+                账户：<select id="account_id" class="mdui-select" mdui-select>
+                    {volist name="accounts" id="account"}
+                    <option value="{$account.id}">{$account.label}</option>
+                    {/volist}
+                </select>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
+                区域：<select id="region" class="mdui-select" mdui-select>
+                    {volist name="regions" id="region"}
+                    <option value="{$key}">{$key} - {$region}</option>
+                    {/volist}
+                </select>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
+                规格：<select id="type" class="mdui-select" mdui-select>
+                    {volist name="types" id="type"}
+                    <option value="{$key}">{$key} - {$type}</option>
+                    {/volist}
+                </select>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
+                镜像：<select id="image" class="mdui-select" mdui-select>
+                    {volist name="images" id="image"}
+                    <option value="{$key}">{$image}</option>
+                    {/volist}
+                </select>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">local_offer</i>
+                    <label class="mdui-textfield-label">Tags，多个用英文逗号分隔</label>
+                    <input class="mdui-textfield-input" id="tags">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
+                <label class="mdui-checkbox">
+                    <input id="private_ip" type="checkbox">
+                    <i class="mdui-checkbox-icon"></i>
+                    分配私网 IPv4
+                </label>
+            </div>
+        </div>
+    </div>
+    <button id="create" class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">创建</button>
+</main>
+</body>
+
+<script>
+    $('#create').on('click', function () {
+        mdui.confirm('创建过程会自动读取个人账号默认 SOCKS5 代理。确认创建吗？', '创建确认', function () {
+            $.ajax({
+                method: 'POST',
+                url: '/user/server/linode',
+                data: {
+                    account_id: $('#account_id').val(),
+                    label: $('#label').val(),
+                    root_pass: $('#root_pass').val(),
+                    region: $('#region').val(),
+                    type: $('#type').val(),
+                    image: $('#image').val(),
+                    tags: $('#tags').val(),
+                    private_ip: $('#private_ip').prop('checked'),
+                },
+                dataType: 'json',
+                success: function (data) {
+                    mdui.alert(data.content, data.title);
+                    if (data.status == '1') {
+                        setTimeout("window.location = '/user/server/linode'", 1200);
+                    }
+                }
+            });
+        });
+    });
+</script>
+{include file="../app/view/user/footer.html" /}
+
+</html>

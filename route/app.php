@@ -46,6 +46,7 @@ Route::put('/user/profile/notify',                'UserDashboard/saveNotify');
 Route::put('/user/profile/passwd',                'UserDashboard/savePasswd');
 Route::put('/user/profile/refresh',               'UserDashboard/saveRefresh');
 Route::put('/user/profile/personalise',           'UserDashboard/savePersonalise');
+Route::resource('/user/proxy',                    'UserProxy');
 
 // 关于项目
 Route::get('/user/license',                       'UserDashboard/license');
@@ -79,6 +80,13 @@ Route::resource('/user/server/aws',               'UserAwsServer');
 Route::post('/user/server/aws/addipv4',           'UserAwsServer/addIpv4');
 Route::post('/user/server/aws/addipv6',           'UserAwsServer/addIpv6');
 Route::post('/user/server/aws/changeip',          'UserAwsServer/changeIp');
+Route::post('/user/server/aws/changeipv6',        'UserAwsServer/changeIpv6');
+
+// Linode 账户
+Route::resource('/user/linode',                   'UserLinode');
+
+// Linode 服务器
+Route::resource('/user/server/linode',            'UserLinodeServer');
 
 // Azure 服务器
 Route::resource('/user/server/azure',             'UserAzureServer');

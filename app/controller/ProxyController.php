@@ -2,6 +2,7 @@
 
 namespace app\controller;
 
+use app\model\UserProxy;
 use GuzzleHttp\Client;
 
 class ProxyController extends UserBase
@@ -41,6 +42,58 @@ class ProxyController extends UserBase
         );
     }
 
+    public static function getDefaultProxy(?int $user_id = null): ?UserProxy
+    {
+        $user_id = $user_id ?? (int) session('user_id');
+        if ($user_id <= 0) {
+            return null;
+        }
+
+        $proxy = UserProxy::where('user_id', $user_id)
+            ->where('enabled', 1)
+            ->where('is_default', 1)
+            ->order('id', 'desc')
+            ->find();
+
+        if ($proxy !== null) {
+            return $proxy;
+        }
+
+        return UserProxy::where('user_id', $user_id)
+            ->where('enabled', 1)
+            ->order('id', 'desc')
+            ->find();
+    }
+
+    public static function createSocks5ProxyUrlFromRecord(UserProxy $proxy): string
+    {
+        return self::createSocks5ProxyUrl(
+            $proxy->address,
+            (int) $proxy->port,
+            $proxy->username ?? '',
+            $proxy->password ?? ''
+        );
+    }
+
+    public static function getDefaultProxyUrl(?int $user_id = null): ?string
+    {
+        $proxy = self::getDefaultProxy($user_id);
+        if ($proxy === null) {
+            return null;
+        }
+
+        return self::createSocks5ProxyUrlFromRecord($proxy);
+    }
+
+    public static function getProxyUrlFromInputOrDefault(?int $user_id = null): ?string
+    {
+        if (input('socks5_switch') === 'true') {
+            return self::createSocks5ProxyUrlFromInput();
+        }
+
+        return self::getDefaultProxyUrl($user_id);
+    }
+
     public static function createGuzzleOptions(string $proxy_url): array
     {
         return [
@@ -58,10 +111,31 @@ class ProxyController extends UserBase
         ];
     }
 
+    public static function createGuzzleClient(?string $proxy_url = null, array $options = []): Client
+    {
+        $proxy_url = $proxy_url ?? self::getDefaultProxyUrl();
+        if ($proxy_url !== null) {
+            $options = array_replace_recursive($options, self::createGuzzleOptions($proxy_url));
+        }
+
+        return new Client($options);
+    }
+
     public function test()
     {
         try {
-            $client = new Client(self::createGuzzleOptions(self::createSocks5ProxyUrlFromInput()));
+            $proxy_id = input('proxy_id/d', 0);
+            if ($proxy_id > 0) {
+                $proxy = UserProxy::where('user_id', session('user_id'))->find($proxy_id);
+                if ($proxy === null) {
+                    throw new \InvalidArgumentException('Proxy not found.');
+                }
+                $proxy_url = self::createSocks5ProxyUrlFromRecord($proxy);
+            } else {
+                $proxy_url = self::createSocks5ProxyUrlFromInput();
+            }
+
+            $client = new Client(self::createGuzzleOptions($proxy_url));
             $response = $client->request('GET', 'https://myip.ipip.net');
             $statusCode = (int) $response->getStatusCode();
 
