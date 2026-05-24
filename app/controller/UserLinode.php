@@ -3,6 +3,7 @@
 namespace app\controller;
 
 use app\model\Linode;
+use app\model\UserProxy;
 use think\facade\View;
 
 class UserLinode extends UserBase
@@ -15,6 +16,7 @@ class UserLinode extends UserBase
 
         View::assign([
             'accounts' => $accounts,
+            'proxies' => $this->getProxies(),
             'total' => $accounts->count(),
         ]);
 
@@ -23,6 +25,9 @@ class UserLinode extends UserBase
 
     public function create()
     {
+        View::assign([
+            'proxies' => $this->getProxies(),
+        ]);
         return View::fetch('../app/view/user/linode/create.html');
     }
 
@@ -35,7 +40,7 @@ class UserLinode extends UserBase
                 throw new \InvalidArgumentException('Label and token are required.');
             }
 
-            $api = new LinodeApi($token, ProxyController::getDefaultProxyUrl());
+            $api = new LinodeApi($token, ProxyController::getProxyUrlFromInputOrDefault());
             $profile = $api->profile();
 
             $account = new Linode();
@@ -65,7 +70,7 @@ class UserLinode extends UserBase
             }
 
             if (input('action/s') === 'refresh') {
-                $api = new LinodeApi($account->token, ProxyController::getDefaultProxyUrl());
+                $api = new LinodeApi($account->token, ProxyController::getProxyUrlFromInputOrDefault());
                 $profile = $api->profile();
                 $account->email = $profile['email'] ?? '';
                 $account->username = $profile['username'] ?? '';
@@ -100,5 +105,14 @@ class UserLinode extends UserBase
         } catch (\Throwable $e) {
             return json(Tools::msg('0', '删除失败', $e->getMessage()));
         }
+    }
+
+    private function getProxies()
+    {
+        return UserProxy::where('user_id', session('user_id'))
+            ->where('enabled', 1)
+            ->order('is_default', 'desc')
+            ->order('id', 'desc')
+            ->select();
     }
 }

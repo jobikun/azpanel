@@ -29,7 +29,7 @@ class ProxyController extends UserBase
             $auth .= '@';
         }
 
-        return "socks5://{$auth}{$addr}:{$port}";
+        return "socks5h://{$auth}{$addr}:{$port}";
     }
 
     public static function createSocks5ProxyUrlFromInput(): string
