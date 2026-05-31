@@ -193,6 +193,18 @@
                             </div>
                             <div class="mdui-panel-item-body">
                                 <div class="mdui-col-sm-12 mdui-col-md-12">
+                                    <div class="mdui-m-t-2">
+                                        代理来源：<select id="proxy_mode" style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
+                                            <option value="default">使用默认代理池</option>
+                                            <option value="none">不使用代理</option>
+                                            {volist name="proxies" id="proxy"}
+                                            <option value="pool:{$proxy.id}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-user="{$proxy.username}" data-passwd="{$proxy.password}" data-default="{$proxy.is_default}">{$proxy.name} - {$proxy.address}:{$proxy.port}{if $proxy.is_default == 1}（默认）{/if}</option>
+                                            {/volist}
+                                            <option value="manual">手动填写下方代理</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mdui-col-sm-12 mdui-col-md-12">
                                     <div class="mdui-switch mdui-m-t-2">
                                         <label>
                                             创建时使用以下代理&nbsp;&nbsp;
@@ -286,7 +298,67 @@
                 document.getElementById(field).value = value;
             }
         });
+        applyProxyMode();
     });
+
+    $('#proxy_mode').on('change', function () {
+        applyProxyMode();
+    });
+
+    $('#socks5_switch').on('change', function () {
+        if ($("#socks5_switch").prop("checked")) {
+            $('#proxy_mode').val('manual');
+        } else if ($('#proxy_mode').val() === 'manual') {
+            $('#proxy_mode').val('default');
+        }
+        applyProxyMode();
+    });
+
+    function proxyRequestData(extra) {
+        var mode = $('#proxy_mode').val() || 'default';
+        var data = extra || {};
+        data.proxy_mode = mode;
+        data.proxy_id = mode.indexOf('pool:') === 0 ? mode.replace('pool:', '') : 0;
+        return data;
+    }
+
+    function getPoolOptionForMode(mode) {
+        if (mode === 'default') {
+            var defaultOption = $('#proxy_mode option[data-default="1"]').first();
+            return defaultOption.length > 0 ? defaultOption : $('#proxy_mode option[value^="pool:"]').first();
+        }
+        if (mode.indexOf('pool:') === 0) {
+            return $('#proxy_mode option:selected');
+        }
+        return $();
+    }
+
+    function fillProxyFields(option) {
+        $('#socks5_address').val(option.attr('data-address') || '');
+        $('#socks5_port').val(option.attr('data-port') || '');
+        $('#socks5_user').val(option.attr('data-user') || '');
+        $('#socks5_passwd').val(option.attr('data-passwd') || '');
+    }
+
+    function applyProxyMode() {
+        var mode = $('#proxy_mode').val() || 'default';
+        var manual = mode === 'manual';
+
+        $('#socks5_switch').prop('checked', manual);
+
+        if (mode === 'none') {
+            $('#socks5_address, #socks5_port, #socks5_user, #socks5_passwd').val('');
+        } else if (!manual) {
+            var option = getPoolOptionForMode(mode);
+            if (option.length > 0) {
+                fillProxyFields(option);
+            } else {
+                $('#socks5_address, #socks5_port, #socks5_user, #socks5_passwd').val('');
+            }
+        }
+
+        $('#socks5_address, #socks5_port, #socks5_user, #socks5_passwd').prop('readonly', !manual);
+    }
 
     function getProgress() {
         $.ajax({
@@ -323,13 +395,13 @@
         $.ajax({
             method: 'POST',
             url: "/proxy/test",
-            data: {
+            data: proxyRequestData({
                 socks5_port: $('#socks5_port').val(),
                 socks5_address: $('#socks5_address').val(),
                 socks5_user: $('#socks5_user').val(),
                 socks5_passwd: $('#socks5_passwd').val(),
 
-            },
+            }),
             dataType: "json",
             success: function (data) {
                 mdui.snackbar({
@@ -351,10 +423,10 @@
         $.ajax({
             method: 'POST',
             url: "/user/server/azure/available",
-            data: {
+            data: proxyRequestData({
                 vm_account: $('#vm_account').val(),
                 location: $('#vm_location').val(),
-            },
+            }),
             dataType: "json",
             success: function (data) {
                 // clear
@@ -391,10 +463,10 @@
         $.ajax({
             method: 'POST',
             url: "/user/server/azure/price",
-            data: {
+            data: proxyRequestData({
                 vm_size: $('#vm_size').val(),
                 location: $('#vm_location').val(),
-            },
+            }),
             dataType: "json",
             success: function (priceData) {
                 if (priceData === null) {
@@ -440,7 +512,7 @@
                 $.ajax({
                     method: 'POST',
                     url: "/user/server/azure",
-                    data: {
+                    data: proxyRequestData({
                         vm_remark: $('#vm_remark').val(),
                         vm_name: $('#vm_name').val(),
                         vm_user: $('#vm_user').val(),
@@ -461,7 +533,7 @@
                         socks5_address: $('#socks5_address').val(),
                         socks5_switch: $("#socks5_switch").prop("checked"),
                         task_uuid: uuid,
-                    },
+                    }),
                     dataType: "json",
                     success: function (data) {
                         load.close();

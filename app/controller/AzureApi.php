@@ -251,7 +251,7 @@ class AzureApi extends BaseController
         return $virtual_machines['value'];
     }
 
-    public static function manageVirtualMachine($action, $account_id, $request_url)
+    public static function manageVirtualMachine($action, $account_id, $request_url, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/start
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/power-off
@@ -269,21 +269,21 @@ class AzureApi extends BaseController
         }
         $action = $actions[$action];
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $request_url . '/' . $action . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $client->post($url, [
-            'headers' => self::getToken($account_id),
+            'headers' => self::getToken($account_id, false, $client),
         ]);
     }
 
-    public static function virtualMachinesDeallocate($account_id, $request_url)
+    public static function virtualMachinesDeallocate($account_id, $request_url, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/deallocate
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $request_url . '/deallocate?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $client->post($url, [
-            'headers' => self::getToken($account_id),
+            'headers' => self::getToken($account_id, false, $client),
         ]);
     }
 
@@ -389,7 +389,7 @@ class AzureApi extends BaseController
         $ip_name,
         $resource_group_name,
         $location,
-        $create_ipv6
+        $force_standard = true
     ) {
         // https://docs.microsoft.com/zh-cn/rest/api/virtualnetwork/public-ip-addresses
 
@@ -397,22 +397,19 @@ class AzureApi extends BaseController
         $label = Str::lower($label);
 
         $body = [
+            'sku' => [
+                'name' => 'Standard',
+                'tier' => 'Regional',
+            ],
             'location' => $location,
             'properties' => [
+                'publicIPAddressVersion' => 'IPv4',
+                'publicIPAllocationMethod' => 'Static',
                 'dnsSettings' => [
                     'domainNameLabel' => $label,
                 ],
             ],
         ];
-
-        if ($create_ipv6) {
-            $body['sku'] = [
-                'name' => 'Standard',
-                'tier' => 'Regional',
-            ];
-            $body['properties']['publicIPAddressVersion'] = 'IPv4';
-            $body['properties']['publicIPAllocationMethod'] = 'Static';
-        }
 
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/publicIPAddresses/' . $ip_name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
 
@@ -590,6 +587,7 @@ class AzureApi extends BaseController
                             'publicIPAddress' => [
                                 'id' => $ipv4_url,
                             ],
+                            'primary' => true,
                             'subnet' => [
                                 'id' => $subnets_url,
                             ],
@@ -600,7 +598,6 @@ class AzureApi extends BaseController
         ];
 
         if ($create_ipv6) {
-            $body['properties']['ipConfigurations']['0']['properties']['primary'] = true;
             $body['properties']['ipConfigurations'][] = [
                 'name' => 'ipconfiguraion_v6',
                 'properties' => [
@@ -613,6 +610,9 @@ class AzureApi extends BaseController
                     ],
                 ],
             ];
+        }
+
+        if ($security_group_id !== '') {
             $body['properties']['networkSecurityGroup'] = [
                 'id' => $security_group_id,
             ];
@@ -652,7 +652,8 @@ class AzureApi extends BaseController
         $nic_name,
         $new_public_ip_id,
         $new_ip_config_name,
-        $location
+        $location,
+        $security_group_id = ''
     ) {
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/networkInterfaces/' . $nic_name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
 
@@ -682,6 +683,12 @@ class AzureApi extends BaseController
             if (!empty($config['properties']['primary'])) {
                 $entry['properties']['primary'] = true;
             }
+            if (isset($config['properties']['privateIPAddress'])) {
+                $entry['properties']['privateIPAddress'] = $config['properties']['privateIPAddress'];
+            }
+            if (isset($config['properties']['privateIPAllocationMethod'])) {
+                $entry['properties']['privateIPAllocationMethod'] = $config['properties']['privateIPAllocationMethod'];
+            }
             if (isset($config['properties']['privateIPAddressVersion'])) {
                 $entry['properties']['privateIPAddressVersion'] = $config['properties']['privateIPAddressVersion'];
             }
@@ -698,6 +705,8 @@ class AzureApi extends BaseController
 
         if (isset($nic['properties']['networkSecurityGroup'])) {
             $body['properties']['networkSecurityGroup'] = ['id' => $nic['properties']['networkSecurityGroup']['id']];
+        } elseif ($security_group_id !== '') {
+            $body['properties']['networkSecurityGroup'] = ['id' => $security_group_id];
         }
 
         $max_retries = 5;
@@ -714,6 +723,129 @@ class AzureApi extends BaseController
                 $body_content = (string) $e->getResponse()->getBody();
                 if ($status === 429 && strpos($body_content, 'ReferencedResourceNotProvisioned') !== false && $attempt < $max_retries) {
                     sleep($retry_delay * $attempt);
+                    continue;
+                }
+                throw $e;
+            }
+        }
+    }
+
+    public static function replacePrimaryNetworkInterfaceIpv4(
+        $client,
+        $account,
+        $resource_group_name,
+        $nic_name,
+        $new_public_ip_id,
+        $location,
+        $security_group_id = ''
+    ): ?string {
+        $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/networkInterfaces/' . $nic_name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
+
+        $result = $client->get($url, [
+            'headers' => self::getToken($account->id, false, $client),
+        ]);
+        $nic = json_decode($result->getBody(), true);
+        $old_public_ip_id = null;
+        $replaced = false;
+
+        $body = [
+            'location' => $location,
+            'properties' => [
+                'enableAcceleratedNetworking' => $nic['properties']['enableAcceleratedNetworking'] ?? false,
+                'ipConfigurations' => [],
+            ],
+        ];
+
+        foreach ($nic['properties']['ipConfigurations'] as $config) {
+            $properties = $config['properties'];
+            $is_ipv6 = isset($properties['privateIPAddressVersion']) && $properties['privateIPAddressVersion'] === 'IPv6';
+            $should_replace = !$is_ipv6 && !$replaced && (!empty($properties['primary']) || $old_public_ip_id === null);
+
+            $entry = [
+                'name' => $config['name'],
+                'properties' => [
+                    'subnet' => ['id' => $properties['subnet']['id']],
+                ],
+            ];
+
+            if (!empty($properties['primary'])) {
+                $entry['properties']['primary'] = true;
+            }
+            if (isset($properties['privateIPAddress'])) {
+                $entry['properties']['privateIPAddress'] = $properties['privateIPAddress'];
+            }
+            if (isset($properties['privateIPAllocationMethod'])) {
+                $entry['properties']['privateIPAllocationMethod'] = $properties['privateIPAllocationMethod'];
+            }
+            if (isset($properties['privateIPAddressVersion'])) {
+                $entry['properties']['privateIPAddressVersion'] = $properties['privateIPAddressVersion'];
+            }
+
+            if ($should_replace) {
+                $old_public_ip_id = $properties['publicIPAddress']['id'] ?? null;
+                $entry['properties']['publicIPAddress'] = ['id' => $new_public_ip_id];
+                $replaced = true;
+            } elseif (isset($properties['publicIPAddress'])) {
+                $entry['properties']['publicIPAddress'] = ['id' => $properties['publicIPAddress']['id']];
+            }
+
+            $body['properties']['ipConfigurations'][] = $entry;
+        }
+
+        if (!$replaced) {
+            throw new \RuntimeException('Primary IPv4 configuration was not found on this network interface.');
+        }
+
+        if (isset($nic['properties']['networkSecurityGroup'])) {
+            $body['properties']['networkSecurityGroup'] = ['id' => $nic['properties']['networkSecurityGroup']['id']];
+        } elseif ($security_group_id !== '') {
+            $body['properties']['networkSecurityGroup'] = ['id' => $security_group_id];
+        }
+
+        $max_retries = 5;
+        $retry_delay = 3;
+        for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
+            try {
+                $client->put($url, [
+                    'headers' => self::getToken($account->id, true, $client),
+                    'json' => $body,
+                ]);
+                return $old_public_ip_id;
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                $status = $e->getResponse()->getStatusCode();
+                $body_content = (string) $e->getResponse()->getBody();
+                if (($status === 409 || $status === 429) && strpos($body_content, 'ReferencedResourceNotProvisioned') !== false && $attempt < $max_retries) {
+                    sleep($retry_delay * $attempt);
+                    continue;
+                }
+                throw $e;
+            }
+        }
+
+        return $old_public_ip_id;
+    }
+
+    public static function deleteAzureResourceById($client, $account, ?string $resource_id): void
+    {
+        if ($resource_id === null || $resource_id === '') {
+            return;
+        }
+
+        $url = 'https://management.azure.com' . $resource_id . '?' . self::apiVersion(self::NETWORK_API_VERSION);
+        $max_retries = 5;
+        for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
+            try {
+                $client->delete($url, [
+                    'headers' => self::getToken($account->id, false, $client),
+                ]);
+                return;
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                $status = $e->getResponse()->getStatusCode();
+                if ($status === 404) {
+                    return;
+                }
+                if ($status === 409 && $attempt < $max_retries) {
+                    sleep(3 * $attempt);
                     continue;
                 }
                 throw $e;
@@ -816,7 +948,7 @@ class AzureApi extends BaseController
         return json_decode($result->getBody(), true); // array
     }
 
-    public static function virtualMachinesResize($new_size, $location, $account_id, $request_url)
+    public static function virtualMachinesResize($new_size, $location, $account_id, $request_url, ?Client $client = null)
     {
         // https://stackoverflow.com/questions/65444722/how-to-downgrade-and-upgrade-azure-virtual-machine-programmatically
 
@@ -831,14 +963,14 @@ class AzureApi extends BaseController
 
         $url = 'https://management.azure.com' . $request_url . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $client->put($url, [
-            'headers' => self::getToken($account_id, true),
+            'headers' => self::getToken($account_id, true, $client),
             'json' => $body,
         ]);
     }
 
-    public static function virtualMachinesRedisk($new_size, $server)
+    public static function virtualMachinesRedisk($new_size, $server, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/disks/create-or-update
 
@@ -866,9 +998,9 @@ class AzureApi extends BaseController
 
         $url = 'https://management.azure.com/subscriptions/' . $server->at_subscription_id . '/resourceGroups/' . $server->resource_group . '/providers/Microsoft.Compute/disks/' . $vm_disk_name . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $client->put($url, [
-            'headers' => self::getToken($server->account_id, true),
+            'headers' => self::getToken($server->account_id, true, $client),
             'json' => $body,
         ]);
     }
@@ -887,7 +1019,7 @@ class AzureApi extends BaseController
         return json_decode($result->getBody(), true);
     }
 
-    public static function getDisks($server)
+    public static function getDisks($server, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/disks/get
 
@@ -896,9 +1028,9 @@ class AzureApi extends BaseController
 
         $url = 'https://management.azure.com/subscriptions/' . $server->at_subscription_id . '/resourceGroups/' . $server->resource_group . '/Providers/Microsoft.Compute/disks/' . $disk_name . '?' . self::apiVersion(self::COMPUTE_API_VERSION);
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $result = $client->get($url, [
-            'headers' => self::getToken($server->account_id, true),
+            'headers' => self::getToken($server->account_id, true, $client),
         ]);
 
         return json_decode($result->getBody(), true);

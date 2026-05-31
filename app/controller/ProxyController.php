@@ -117,13 +117,18 @@ class ProxyController extends UserBase
         return self::getDefaultProxyUrl($user_id);
     }
 
-    public static function createGuzzleOptions(string $proxy_url): array
+    public static function createGuzzleOptions(?string $proxy_url = null, int $timeout = 60, int $connect_timeout = 15): array
     {
-        return [
-            'proxy' => $proxy_url,
-            'timeout' => 5,
-            'connect_timeout' => 5,
+        $options = [
+            'timeout' => $timeout,
+            'connect_timeout' => $connect_timeout,
         ];
+
+        if ($proxy_url !== null) {
+            $options['proxy'] = $proxy_url;
+        }
+
+        return $options;
     }
 
     public static function createAwsHttpOptions(string $proxy_url): array
@@ -134,14 +139,13 @@ class ProxyController extends UserBase
         ];
     }
 
-    public static function createGuzzleClient(?string $proxy_url = null, array $options = []): Client
+    public static function createGuzzleClient(?string $proxy_url = null, array $options = [], bool $use_default_proxy = true): Client
     {
-        $proxy_url = $proxy_url ?? self::getDefaultProxyUrl();
-        if ($proxy_url !== null) {
-            $options = array_replace_recursive($options, self::createGuzzleOptions($proxy_url));
+        if ($proxy_url === null && $use_default_proxy) {
+            $proxy_url = self::getDefaultProxyUrl();
         }
 
-        return new Client($options);
+        return new Client(array_replace_recursive(self::createGuzzleOptions($proxy_url), $options));
     }
 
     public function test()
@@ -155,7 +159,7 @@ class ProxyController extends UserBase
                 $proxy_url = self::createSocks5ProxyUrlFromInput();
             }
 
-            $client = $proxy_url === null ? new Client(['timeout' => 5, 'connect_timeout' => 5]) : new Client(self::createGuzzleOptions($proxy_url));
+            $client = new Client(self::createGuzzleOptions($proxy_url, 5, 5));
             $response = $client->request('GET', 'https://myip.ipip.net');
             $statusCode = (int) $response->getStatusCode();
 
