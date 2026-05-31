@@ -264,6 +264,7 @@ class UserAzure extends UserBase
         $az_configs = input('az_configs/s');
         $ignore_status = input('ignore_status/s');
         $remark_filling = input('remark_filling/s');
+        $configs = [];
 
         // 如果没填 api 信息
         if ($az_app_id === '' && $az_secret === '' && $az_tenant_id === '' && $az_configs === '') {
@@ -272,16 +273,16 @@ class UserAzure extends UserBase
 
         // 如果 json 信息不规范
         if ($az_configs !== '') {
-            $configs = json_decode($az_configs, true);
-            $decode_error = json_last_error();
-            if ($decode_error !== 0) {
-                $az_email = Tools::getMailAddress($az_configs);
-                $json_text = Tools::getJsonContent($az_configs);
-                $configs = json_decode($json_text, true);
-                $decode_error = json_last_error();
-                if ($decode_error !== 0) {
-                    return json(Tools::msg('0', '添加失败', '此 json 内容格式不规范'));
-                }
+            $parsed_configs = self::parseAzureAutoConfig($az_configs);
+            if ($parsed_configs['email'] !== '') {
+                $az_email = $parsed_configs['email'];
+            }
+            if ($parsed_configs['login_passwd'] !== '') {
+                $az_passwd = $parsed_configs['login_passwd'];
+            }
+            $configs = $parsed_configs['configs'];
+            if (empty($configs)) {
+                return json(Tools::msg('0', '添加失败', '此 json 内容格式不规范'));
             }
         }
 
@@ -370,6 +371,85 @@ class UserAzure extends UserBase
         }
 
         return json(Tools::msg('1', '添加结果', $content));
+    }
+
+    private static function parseAzureAutoConfig(string $text): array
+    {
+        $text = trim($text);
+        $result = [
+            'email' => self::extractAzureEmail($text),
+            'login_passwd' => '',
+            'configs' => [],
+        ];
+
+        $json_start = strpos($text, '{');
+        $before_json = $json_start === false ? $text : substr($text, 0, $json_start);
+        $segments = preg_split('/\s*---\s*/', trim($before_json));
+        if (is_array($segments) && count($segments) >= 2) {
+            $segment_email = trim($segments[0], " \t\n\r\0\x0B\"'");
+            if (filter_var($segment_email, FILTER_VALIDATE_EMAIL)) {
+                $result['email'] = $segment_email;
+            }
+            $result['login_passwd'] = trim($segments[1], " \t\n\r\0\x0B\"'");
+        }
+
+        $json_text = self::extractAzureJsonText($text);
+        $configs = self::decodeAzureConfigJson($json_text !== '' ? $json_text : $text);
+        if (isset($configs['login_user']) && $configs['login_user'] !== '') {
+            $result['email'] = $configs['login_user'];
+        }
+        if (isset($configs['login_passwd']) && $configs['login_passwd'] !== '') {
+            $result['login_passwd'] = $configs['login_passwd'];
+        }
+        $result['configs'] = $configs;
+
+        return $result;
+    }
+
+    private static function extractAzureEmail(string $text): string
+    {
+        if (preg_match('/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/', $text, $matches)) {
+            return $matches[0];
+        }
+
+        return '';
+    }
+
+    private static function extractAzureJsonText(string $text): string
+    {
+        $start = strpos($text, '{');
+        $end = strrpos($text, '}');
+        if ($start === false || $end === false || $end < $start) {
+            return '';
+        }
+
+        return substr($text, $start, $end - $start + 1);
+    }
+
+    private static function decodeAzureConfigJson(string $json_text): array
+    {
+        $json_text = trim($json_text);
+        if ($json_text === '') {
+            return [];
+        }
+
+        $candidates = [$json_text];
+        if ($json_text[0] === '"' && substr($json_text, -1) === '"') {
+            $unquoted = substr($json_text, 1, -1);
+            $candidates[] = stripcslashes($unquoted);
+            $candidates[] = str_replace('""', '"', $unquoted);
+        }
+        $candidates[] = str_replace('""', '"', $json_text);
+        $candidates[] = html_entity_decode($json_text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        foreach (array_unique($candidates) as $candidate) {
+            $configs = json_decode($candidate, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($configs)) {
+                return $configs;
+            }
+        }
+
+        return [];
     }
 
     public function update($id)
