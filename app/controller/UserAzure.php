@@ -10,6 +10,7 @@ use app\model\Azure;
 use app\model\AzureRecycle;
 use app\model\AzureServer;
 use app\model\Share;
+use app\model\UserProxy;
 use GuzzleHttp\Client;
 use think\facade\Db;
 use think\facade\View;
@@ -700,27 +701,49 @@ class UserAzure extends UserBase
 
         $count = 0;
         $ip_set = [];
+        $server_id_set = [];
         $resources = AzureApi::getAzureResourceGroupsList($id, $account->az_sub_id);
         $virtual_machines = AzureApi::readAzureVirtualMachinesList($id, $account->az_sub_id);
+        $server_ip_set = [];
+        $servers = AzureServer::where('user_id', session('user_id'))
+            ->where('account_id', $id)
+            ->select();
+        foreach ($servers as $server) {
+            $server_id_set[$server->vm_id] = $server->id;
+            $server_ip_set[$server->vm_id] = $server->ip_address ?? 'null';
+        }
 
         View::assign('count', $count);
         View::assign('resources', $resources);
-        View::assign('virtual_machines', $virtual_machines);
 
-        foreach ($virtual_machines as $vm) {
+        foreach ($virtual_machines as $index => $vm) {
             $vm_id = $vm['properties']['vmId'];
-            $server = AzureServer::where('vm_id', $vm_id)->find();
-            if ($server === null) {
+            if (!isset($server_id_set[$vm_id])) {
                 $details = explode('/', $vm['properties']['networkProfile']['networkInterfaces']['0']['id']);
                 $network = AzureApi::getAzureNetworkInterfacesDetails($id, $details['8'], $details['4'], $details['2']);
                 $ip_set[$vm_id] = $network['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['properties']['ipAddress'] ?? 'null';
+                $virtual_machines[$index]['panel_server_id'] = 0;
             } else {
-                $ip_set[$vm_id] = $server->ip_address ?? 'null';
+                $ip_set[$vm_id] = $server_ip_set[$vm_id] ?? 'null';
+                $virtual_machines[$index]['panel_server_id'] = $server_id_set[$vm_id];
             }
+            $virtual_machines[$index]['panel_ip_address'] = $ip_set[$vm_id];
         }
 
+        View::assign('virtual_machines', $virtual_machines);
         View::assign('ip_set', $ip_set);
+        View::assign('server_id_set', $server_id_set);
+        View::assign('proxies', $this->getProxies());
         return View::fetch('../app/view/user/azure/resources.html');
+    }
+
+    private function getProxies()
+    {
+        return UserProxy::where('user_id', session('user_id'))
+            ->where('enabled', 1)
+            ->order('is_default', 'desc')
+            ->order('id', 'desc')
+            ->select();
     }
 
     public function readResourceGroup($id, $name)
