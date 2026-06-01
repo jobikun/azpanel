@@ -110,16 +110,13 @@ class UserAzure extends UserBase
             $url = input('share_link/s');
             $user_mark = input('user_mark/s');
             $remark_filling = input('remark_filling/s');
-            // https://www.jianshu.com/p/074f96f9d005
-            // 忽略证书问题
-            $stream_opts = [
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                ],
-            ];
+            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $client = ProxyController::createGuzzleClient($proxy_url, [], false);
             // get & decode
-            $content = file_get_contents($url, false, stream_context_create($stream_opts));
+            $response = $client->get($url, [
+                'verify' => false,
+            ]);
+            $content = (string) $response->getBody();
             if (Str::contains($content, 'thinkphp_show_page_trace')) {
                 throw new \Exception('共享方站点未关闭调试模式，因此不能正确解码数据');
             }
@@ -145,7 +142,7 @@ class UserAzure extends UserBase
                 $account->updated_at = time();
                 $account->save();
 
-                $sub_info = AzureApi::getAzureSubscription($account->id); // array
+                $sub_info = AzureApi::getAzureSubscription($account->id, $client); // array
                 if ($sub_info['count']['value'] !== '0') {
                     $account->az_sub = json_encode($sub_info);
                     $account->az_sub_id = $sub_info['value']['0']['subscriptionId'];
@@ -155,8 +152,7 @@ class UserAzure extends UserBase
                     $account->save();
                 }
 
-                $client = ProxyController::createGuzzleClient();
-                $count = AzureApi::getAzureVirtualMachines($account->id);
+                $count = AzureApi::getAzureVirtualMachines($account->id, $client);
                 if ($count !== 0) {
                     $account->providers_register = 1;
                     $account->save();
@@ -171,7 +167,7 @@ class UserAzure extends UserBase
             }
             $ajax_content = '通过此链接添加了 ' . $content['count'] . ' 个账户';
         } catch (\Exception $e) {
-            return json(Tools::msg('0', '添加失败', $e->getMessage()));
+            return json(Tools::msg('0', '添加失败', Tools::exceptionMessage($e)));
         }
 
         return json(Tools::msg('1', '添加结果', $ajax_content));
@@ -187,6 +183,7 @@ class UserAzure extends UserBase
             ->select();
 
         View::assign('notes', $notes);
+        View::assign('proxies', $this->getProxies());
         return View::fetch('../app/view/user/azure/create.html');
     }
 
@@ -333,7 +330,9 @@ class UserAzure extends UserBase
         $account->save();
 
         try {
-            $sub_info = AzureApi::getAzureSubscription($account->id); // array
+            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $client = ProxyController::createGuzzleClient($proxy_url, [], false);
+            $sub_info = AzureApi::getAzureSubscription($account->id, $client); // array
             if ((int) $sub_info['count']['value'] === 0) {
                 throw new \Exception('此账户无有效订阅。若有，建议使用以下命令获取 Api 参数 <div class="mdui-typo"><code>az ad sp create-for-rbac --role contributor --scopes /subscriptions/$(az account list --query [].id -o tsv)</code></div>');
             }
@@ -344,7 +343,7 @@ class UserAzure extends UserBase
             }
         } catch (\Exception $e) {
             Azure::destroy($account->id);
-            return json(Tools::msg('0', '添加失败', $e->getMessage()));
+            return json(Tools::msg('0', '添加失败', Tools::exceptionMessage($e)));
         }
 
         $account->az_sub = json_encode($sub_info);
@@ -354,8 +353,7 @@ class UserAzure extends UserBase
         $account->az_sub_updated_at = time();
         $account->save();
 
-        $client = ProxyController::createGuzzleClient();
-        $count = AzureApi::getAzureVirtualMachines($account->id);
+        $count = AzureApi::getAzureVirtualMachines($account->id, $client);
         $content = $count !== 0 ? '加载了 ' . $count . ' 个资源' : '添加成功';
 
         if ($count !== 0) {

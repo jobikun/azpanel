@@ -283,6 +283,11 @@ class UserAzureServer extends UserBase
         $single_size_core = (int) (AzureList::sizes()[$vm_size]['cpu'] ?? 1);
         foreach ($limits['value'] as $limit) {
             if ($limit['name'] === $vm_size) {
+                if ($create_check === 1 && self::hasSkuRestrictionForLocation($limit, $vm_location)) {
+                    $message = $vm_size . ' 当前在 ' . $vm_location . ' 不可用，请换一个规格或地区。Azure 原因：' . self::skuRestrictionMessage($limit);
+                    UserTask::end($task_id, true, json_encode(['msg' => $message]), true);
+                    return json(Tools::msg('0', '创建失败', $message));
+                }
                 $hyper_v_generations = $limit['capabilities']['4']['value'] ?? '';
                 foreach ($limit['capabilities'] ?? [] as $capability) {
                     if (($capability['name'] ?? '') === 'HyperVGenerations') {
@@ -1235,10 +1240,12 @@ class UserAzureServer extends UserBase
         foreach ($limits['value'] as $limit) {
             if ($limit['resourceType'] === 'virtualMachines') {
                 // 若虚拟机规格中包含关键字p 则代表是arm64处理器 与默认镜像不兼容 因此需要过滤掉
-                if (!Str::contains($limit['name'], 'p')) {
+                if (!Str::contains($limit['name'], 'p') && !self::hasSkuRestrictionForLocation($limit, $location)) {
+                    $cpu = self::getSkuCapability($limit, 'vCPUs', $limit['capabilities']['2']['value'] ?? '?');
+                    $memory = self::getSkuCapability($limit, 'MemoryGB', $limit['capabilities']['5']['value'] ?? '?');
                     $size = [
                         'name' => $limit['name'],
-                        'size_name' => $limit['name'] . ' => ' . $limit['capabilities']['2']['value'] . 'C_' . $limit['capabilities']['5']['value'] . 'GB',
+                        'size_name' => $limit['name'] . ' => ' . $cpu . 'C_' . $memory . 'GB',
                     ];
                     array_push($set, $size);
                 }
@@ -1282,5 +1289,49 @@ class UserAzureServer extends UserBase
             ->order('is_default', 'desc')
             ->order('id', 'desc')
             ->select();
+    }
+
+    private static function getSkuCapability(array $sku, string $name, $default = null)
+    {
+        foreach ($sku['capabilities'] ?? [] as $capability) {
+            if (($capability['name'] ?? '') === $name) {
+                return $capability['value'] ?? $default;
+            }
+        }
+
+        return $default;
+    }
+
+    private static function hasSkuRestrictionForLocation(array $sku, string $location): bool
+    {
+        foreach ($sku['restrictions'] ?? [] as $restriction) {
+            $values = array_map('strtolower', $restriction['values'] ?? []);
+            $locations = array_map('strtolower', $restriction['restrictionInfo']['locations'] ?? []);
+            $location = strtolower($location);
+
+            if (empty($values) && empty($locations)) {
+                return true;
+            }
+            if (in_array($location, $values, true) || in_array($location, $locations, true)) {
+                return true;
+            }
+            if (($restriction['type'] ?? '') === 'Location') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function skuRestrictionMessage(array $sku): string
+    {
+        $messages = [];
+        foreach ($sku['restrictions'] ?? [] as $restriction) {
+            $reason = $restriction['reasonCode'] ?? 'Restriction';
+            $type = $restriction['type'] ?? 'Unknown';
+            $messages[] = $reason . ' / ' . $type;
+        }
+
+        return empty($messages) ? 'SkuNotAvailable' : implode('; ', $messages);
     }
 }
