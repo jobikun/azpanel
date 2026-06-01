@@ -35,10 +35,10 @@ class ProxyController extends UserBase
     public static function createSocks5ProxyUrlFromInput(): string
     {
         return self::createSocks5ProxyUrl(
-            input('socks5_address/s'),
-            input('socks5_port/d'),
-            input('socks5_user/s'),
-            input('socks5_passwd/s')
+            (string) input('socks5_address/s', ''),
+            (int) input('socks5_port/d', 0),
+            (string) input('socks5_user/s', ''),
+            (string) input('socks5_passwd/s', '')
         );
     }
 
@@ -95,7 +95,8 @@ class ProxyController extends UserBase
             return null;
         }
 
-        if ($proxy_mode === 'manual' || input('socks5_switch') === 'true') {
+        $manual_enabled = $proxy_mode === 'manual' || input('socks5_switch') === 'true' || input('socks5_switch') === true;
+        if ($manual_enabled && trim((string) input('socks5_address/s', '')) !== '') {
             return self::createSocks5ProxyUrlFromInput();
         }
 
