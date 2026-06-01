@@ -235,7 +235,7 @@ class UserAzureServer extends UserBase
             $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
         } catch (\Exception $e) {
-            return json(Tools::msg('0', '创建失败', Tools::exceptionMessage($e)));
+            return json(Tools::msg('0', '创建失败', self::exceptionMessage($e)));
         }
 
         // 初始化创建任务
@@ -267,8 +267,8 @@ class UserAzureServer extends UserBase
         try {
             $sub_info = AzureApi::getAzureSubscription($account->id, $client); // array
         } catch (\Exception $e) {
-            UserTask::end($task_id, true, Tools::exceptionMessage($e));
-            return json(Tools::msg('0', '创建失败', Tools::exceptionMessage($e)));
+            UserTask::end($task_id, true, self::exceptionMessage($e));
+            return json(Tools::msg('0', '创建失败', self::exceptionMessage($e)));
         }
         if ($sub_info['value']['0']['state'] !== 'Enabled') {
             UserTask::end($task_id, true, json_encode(
@@ -478,7 +478,7 @@ class UserAzureServer extends UserBase
                     $vm_location
                 );
             } catch (\Exception $e) {
-                $error = Tools::exceptionMessage($e);
+                $error = self::exceptionMessage($e);
                 UserTask::end($task_id, true, $error);
                 return json(Tools::msg('0', '创建失败', $error));
             }
@@ -1243,7 +1243,7 @@ class UserAzureServer extends UserBase
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
             $limits = AzureApi::getResourceSkusList($client, $account, $location);
         } catch (\Exception $e) {
-            return json(Tools::msg('0', '加载失败', Tools::exceptionMessage($e)));
+            return json(Tools::msg('0', '加载失败', self::exceptionMessage($e)));
         }
 
         foreach ($limits['value'] as $limit) {
@@ -1342,5 +1342,33 @@ class UserAzureServer extends UserBase
         }
 
         return empty($messages) ? 'SkuNotAvailable' : implode('; ', $messages);
+    }
+
+    private static function exceptionMessage(\Throwable $e): string
+    {
+        $message = trim($e->getMessage());
+
+        if (method_exists($e, 'getResponse') && $e->getResponse()) {
+            $body = trim((string) $e->getResponse()->getBody());
+            if ($body !== '') {
+                $decoded = json_decode($body, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    if (isset($decoded['error']['message'])) {
+                        $code = $decoded['error']['code'] ?? 'AzureError';
+                        $body = $code . ': ' . $decoded['error']['message'];
+                    } elseif (isset($decoded['message'])) {
+                        $body = $decoded['message'];
+                    } elseif (isset($decoded['error_description'])) {
+                        $body = $decoded['error_description'];
+                    }
+                }
+
+                if ($message === '' || strpos($message, $body) === false) {
+                    $message = $message === '' ? $body : $message . "\n\n" . $body;
+                }
+            }
+        }
+
+        return $message !== '' ? $message : get_class($e);
     }
 }

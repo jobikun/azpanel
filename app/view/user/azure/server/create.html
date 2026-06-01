@@ -491,14 +491,20 @@
                     position: 'top',
                 });
             },
-            error: function () {
+            error: function (xhr) {
                 if (seq !== availableLoadSeq) {
                     return;
                 }
+                var message = '加载可用规格失败，请检查账号、代理或网络';
+                if (xhr.responseJSON && xhr.responseJSON.content) {
+                    message = xhr.responseJSON.content;
+                } else if (xhr.responseText) {
+                    message = $('<div>').text(xhr.responseText.substring(0, 600)).html();
+                }
                 mdui.snackbar({
-                    message: '加载可用规格失败，请检查账号、代理或网络',
+                    message: message,
                     position: 'top',
-                    timeout: '2500',
+                    timeout: '5000',
                 });
             },
             complete: function () {
