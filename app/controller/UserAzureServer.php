@@ -309,17 +309,18 @@ class UserAzureServer extends UserBase
             }
         }
 
-        // 资源组检查
-        UserTask::update($task_id, (++$progress / $steps), '正在检查资源组');
-        $resource_groups = AzureApi::getAzureResourceGroupsList($account->id, $account->az_sub_id, $client);
-        foreach ($resource_groups['value'] as $resource_group) {
+        // 同名资源组允许复用；只有 Azure 中已存在同名虚拟机时才阻断。
+        UserTask::update($task_id, (++$progress / $steps), '正在检查同名虚拟机');
+        $virtual_machines = AzureApi::readAzureVirtualMachinesList($account->id, $account->az_sub_id, $client);
+        foreach ($virtual_machines as $virtual_machine) {
             foreach ($names as $name) {
-                $resource_group_name = $name . '_group';
-                if (Str::lower($resource_group['name']) === Str::lower($resource_group_name)) {
-                    UserTask::end($task_id, true, json_encode(
-                        ['msg' => 'A resource group with the same name exists: ' . $name]
-                    ), true);
-                    return json(Tools::msg('0', '创建失败', '存在同名资源组，请修改虚拟机名称 ' . $name));
+                $resource_group_name = Str::lower($name . '_group');
+                $params = explode('/', $virtual_machine['id']);
+                $vm_resource_group = Str::lower($params['4'] ?? '');
+                if (Str::lower($virtual_machine['name']) === Str::lower($name) && $vm_resource_group === $resource_group_name) {
+                    $message = 'Azure 中已存在同名虚拟机，请修改虚拟机名称 ' . $name;
+                    UserTask::end($task_id, true, json_encode(['msg' => $message]), true);
+                    return json(Tools::msg('0', '创建失败', $message));
                 }
             }
         }
@@ -381,7 +382,7 @@ class UserAzureServer extends UserBase
             try {
                 // 创建资源组
                 sleep(1);
-                UserTask::update($task_id, (++$progress / $steps), '创建资源组 ' . $vm_resource_group_name);
+                UserTask::update($task_id, (++$progress / $steps), '创建或复用资源组 ' . $vm_resource_group_name);
                 AzureApi::createAzureResourceGroup(
                     $client,
                     $account,

@@ -237,14 +237,14 @@ class AzureApi extends BaseController
         return $count;
     }
 
-    public static function readAzureVirtualMachinesList($account_id, $az_sub_id)
+    public static function readAzureVirtualMachinesList($account_id, $az_sub_id, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/compute/virtual-machines/list-all
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $az_sub_id . '/providers/Microsoft.Compute/virtualMachines?' . self::apiVersion(self::COMPUTE_API_VERSION);
         $result = $client->get($url, [
-            'headers' => self::getToken($account_id),
+            'headers' => self::getToken($account_id, false, $client),
         ]);
 
         $virtual_machines = json_decode($result->getBody(), true);
