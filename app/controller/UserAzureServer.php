@@ -1232,10 +1232,18 @@ class UserAzureServer extends UserBase
         $vm_account = input('vm_account/s');
 
         $set = [];
-        $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
-        $client = ProxyController::createGuzzleClient($proxy_url, [], false);
         $account = Azure::where('user_id', session('user_id'))->find($vm_account);
-        $limits = AzureApi::getResourceSkusList($client, $account, $location);
+        if ($account === null) {
+            return json(Tools::msg('0', '加载失败', 'Azure 账户不存在或不属于当前用户'));
+        }
+
+        try {
+            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $client = ProxyController::createGuzzleClient($proxy_url, [], false);
+            $limits = AzureApi::getResourceSkusList($client, $account, $location);
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '加载失败', Tools::exceptionMessage($e)));
+        }
 
         foreach ($limits['value'] as $limit) {
             if ($limit['resourceType'] === 'virtualMachines') {

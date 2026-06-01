@@ -303,6 +303,7 @@
 
     $('#proxy_mode').on('change', function () {
         applyProxyMode();
+        scheduleAutoLoadAvailableModels();
     });
 
     $('#socks5_switch').on('change', function () {
@@ -312,6 +313,7 @@
             $('#proxy_mode').val('default');
         }
         applyProxyMode();
+        scheduleAutoLoadAvailableModels();
     });
 
     function proxyRequestData(extra) {
@@ -413,9 +415,51 @@
         });
     });
 
-    $('#load_available_models').on('click', function () {
+    var availableLoadTimer = null;
+    var availableLoadSeq = 0;
+
+    function scheduleAutoLoadAvailableModels() {
+        clearTimeout(availableLoadTimer);
+        availableLoadTimer = setTimeout(function () {
+            loadAvailableModels(true);
+        }, 300);
+    }
+
+    function renderSizeOptions(data, preferredSize) {
+        $('#vm_size').empty();
+        if (!Array.isArray(data) || data.length === 0) {
+            $('#vm_size').append('<option value="">当前地区没有可用规格</option>');
+            $('#create').prop('disabled', true);
+            inst.handleUpdate();
+            return 0;
+        }
+
+        for (var i = 0; i < data.length; i++) {
+            $('#vm_size').append('<option value="' + data[i].name + '">' + data[i].size_name + '</option>');
+        }
+
+        if (preferredSize && $('#vm_size option[value="' + preferredSize + '"]').length > 0) {
+            $('#vm_size').val(preferredSize);
+        }
+        $('#create').prop('disabled', false);
+        inst.handleUpdate();
+        return data.length;
+    }
+
+    function loadAvailableModels(auto) {
+        var account = $('#vm_account').val();
+        var location = $('#vm_location').val();
+        var preferredSize = $('#vm_size').val() || '{$personalise.vm_size}';
+        var seq = ++availableLoadSeq;
+
+        if (!account || !location) {
+            return;
+        }
+
+        $('#load_available_models').prop('disabled', true);
+        $('#create').prop('disabled', true);
         mdui.snackbar({
-            message: '加载中...',
+            message: auto ? '正在根据地区加载可用规格...' : '加载中...',
             position: 'top',
             timeout: '500',
         });
@@ -429,20 +473,48 @@
             }),
             dataType: "json",
             success: function (data) {
-                // clear
-                $('#vm_size').empty();
-                // load
-                for (var i = 0; i < data.length; i++) {
-                    $('#vm_size').append('<option value="' + data[i].name + '">' + data[i].size_name + '</option>');
+                if (seq !== availableLoadSeq) {
+                    return;
                 }
-                inst.handleUpdate();
-                // return
+                if (data && data.status == '0') {
+                    $('#create').prop('disabled', true);
+                    mdui.snackbar({
+                        message: data.content || '加载可用规格失败',
+                        position: 'top',
+                        timeout: '3000',
+                    });
+                    return;
+                }
+                var count = renderSizeOptions(data, preferredSize);
                 mdui.snackbar({
-                    message: '已加载 ' + data.length + ' 个可用规格',
+                    message: count > 0 ? '已加载 ' + count + ' 个可用规格' : '当前地区没有可用规格，请换地区或账号',
                     position: 'top',
-                })
-            }
+                });
+            },
+            error: function () {
+                if (seq !== availableLoadSeq) {
+                    return;
+                }
+                mdui.snackbar({
+                    message: '加载可用规格失败，请检查账号、代理或网络',
+                    position: 'top',
+                    timeout: '2500',
+                });
+            },
+            complete: function () {
+                if (seq === availableLoadSeq) {
+                    $('#load_available_models').prop('disabled', false);
+                }
+            },
         });
+    }
+
+    $('#load_available_models').on('click', function () {
+        loadAvailableModels(false);
+    });
+
+    $('#vm_location, #vm_account').on('change', function () {
+        scheduleAutoLoadAvailableModels();
     });
 
     $('#create_ipv6').on('change', function () {
@@ -574,6 +646,7 @@
     $("#vm_disk_size").prop('value', '{$personalise.vm_disk_size}');
     $("#vm_default_identity").prop('value', '{$personalise.vm_default_identity}');
     $("#vm_default_credentials").prop('value', '{$personalise.vm_default_credentials}');
+    scheduleAutoLoadAvailableModels();
 </script>
 {include file="../app/view/user/footer.html" /}
 
