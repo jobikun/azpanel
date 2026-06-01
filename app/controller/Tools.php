@@ -115,4 +115,32 @@ class Tools
     preg_match('/{(.*?)}/is', $text, $matches);
     return $matches[0] ?? '';
 }
+
+    public static function exceptionMessage(\Throwable $e): string
+{
+    $message = trim($e->getMessage());
+
+    if (method_exists($e, 'getResponse') && $e->getResponse()) {
+        $body = trim((string) $e->getResponse()->getBody());
+        if ($body !== '') {
+            $decoded = json_decode($body, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                if (isset($decoded['error']['message'])) {
+                    $code = $decoded['error']['code'] ?? 'AzureError';
+                    $body = $code . ': ' . $decoded['error']['message'];
+                } elseif (isset($decoded['message'])) {
+                    $body = $decoded['message'];
+                } elseif (isset($decoded['error_description'])) {
+                    $body = $decoded['error_description'];
+                }
+            }
+
+            if ($message === '' || strpos($message, $body) === false) {
+                $message = $message === '' ? $body : $message . "\n\n" . $body;
+            }
+        }
+    }
+
+    return $message !== '' ? $message : get_class($e);
+}
 }

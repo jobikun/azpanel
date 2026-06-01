@@ -235,7 +235,7 @@ class UserAzureServer extends UserBase
             $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
         } catch (\Exception $e) {
-            return json(Tools::msg('0', '创建失败', $e->getMessage()));
+            return json(Tools::msg('0', '创建失败', Tools::exceptionMessage($e)));
         }
 
         // 初始化创建任务
@@ -267,7 +267,8 @@ class UserAzureServer extends UserBase
         try {
             $sub_info = AzureApi::getAzureSubscription($account->id, $client); // array
         } catch (\Exception $e) {
-            return json(Tools::msg('0', '创建失败', $e->getMessage()));
+            UserTask::end($task_id, true, Tools::exceptionMessage($e));
+            return json(Tools::msg('0', '创建失败', Tools::exceptionMessage($e)));
         }
         if ($sub_info['value']['0']['state'] !== 'Enabled') {
             UserTask::end($task_id, true, json_encode(
@@ -471,7 +472,7 @@ class UserAzureServer extends UserBase
                     $vm_location
                 );
             } catch (\Exception $e) {
-                $error = $e->getMessage();
+                $error = Tools::exceptionMessage($e);
                 UserTask::end($task_id, true, $error);
                 return json(Tools::msg('0', '创建失败', $error));
             }

@@ -538,17 +538,24 @@
                     success: function (data) {
                         load.close();
                         clearInterval(cycle);
+                        var content = data.content || '后端没有返回具体错误内容，请查看任务进度或服务器运行日志。';
                         if (data.status == '0') {
-                            mdui.alert(data.content, data.title);
+                            mdui.alert(content, data.title || '创建失败');
                         } else {
-                            mdui.alert(data.content, data.title);
+                            mdui.alert(content, data.title || '创建结果');
                             setTimeout("window.location = '/user/server/azure'", 1500);
                         }
                     },
-                    error: function (data) {
+                    error: function (xhr) {
                         load.close();
                         clearInterval(cycle);
-                        mdui.alert('<div class="mdui-typo">请在 <code>.env</code> 文件中开启 <code>debug</code> 模式，然后在浏览器控制台查看错误', '创建失败</div>');
+                        var message = '请求失败，后端没有返回 JSON。';
+                        if (xhr.responseJSON && xhr.responseJSON.content) {
+                            message = xhr.responseJSON.content;
+                        } else if (xhr.responseText) {
+                            message = $('<div>').text(xhr.responseText.substring(0, 1200)).html();
+                        }
+                        mdui.alert('<div class="mdui-typo">' + message + '</div>', '创建失败');
                     },
                 });
             },
