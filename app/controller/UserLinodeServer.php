@@ -76,7 +76,9 @@ class UserLinodeServer extends UserBase
                 throw new \InvalidArgumentException('Root password must be at least 8 characters.');
             }
 
-            $api = new LinodeApi($account->token, ProxyController::getProxyUrlFromInputOrDefault());
+            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_label = ProxyController::getProxyLabelFromInput();
+            $api = new LinodeApi($account->token, $proxy_url);
             $created = [];
 
             foreach ($names as $name) {
@@ -98,7 +100,7 @@ class UserLinodeServer extends UserBase
                 $created[] = $api->createInstance($params);
             }
 
-            return json(Tools::msg('1', '创建成功', '已创建 ' . count($created) . ' 台 Linode'));
+            return json(Tools::msg('1', '创建成功', '已创建 ' . count($created) . ' 台 Linode<br>Create proxy: ' . $proxy_label));
         } catch (\Throwable $e) {
             return json(Tools::msg('0', '创建失败', $e->getMessage()));
         }

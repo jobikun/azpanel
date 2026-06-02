@@ -75,6 +75,54 @@ class ProxyController extends UserBase
         );
     }
 
+    private static function formatProxyLabel(UserProxy $proxy, string $prefix): string
+    {
+        $name = trim((string) ($proxy->name ?? ''));
+        $address = trim((string) ($proxy->address ?? ''));
+        $port = (int) ($proxy->port ?? 0);
+        $label = $name !== '' ? $name : ('#' . $proxy->id);
+
+        return $prefix . ': ' . $label . ' (' . $address . ':' . $port . ')';
+    }
+
+    public static function getProxyLabelFromInput(?int $user_id = null): string
+    {
+        $proxy_mode = trim((string) input('proxy_mode/s', ''));
+        $proxy_id = input('proxy_id/d', 0);
+        $user_id = $user_id ?? (int) session('user_id');
+
+        if ($proxy_mode === '' || $proxy_mode === 'none') {
+            return 'No proxy';
+        }
+
+        $manual_enabled = $proxy_mode === 'manual' || input('socks5_switch') === 'true' || input('socks5_switch') === true;
+        if ($manual_enabled) {
+            $address = trim((string) input('socks5_address/s', ''));
+            $port = (int) input('socks5_port/d', 0);
+
+            return $address !== '' && $port > 0 ? ('Manual proxy: ' . $address . ':' . $port) : 'Manual proxy (missing address)';
+        }
+
+        if ($proxy_id > 0 || str_starts_with($proxy_mode, 'pool:')) {
+            if ($proxy_id <= 0) {
+                $proxy_id = (int) substr($proxy_mode, 5);
+            }
+
+            $proxy = UserProxy::where('user_id', $user_id)
+                ->where('enabled', 1)
+                ->find($proxy_id);
+
+            return $proxy === null ? ('Proxy pool #' . $proxy_id . ' (unavailable)') : self::formatProxyLabel($proxy, 'Proxy pool');
+        }
+
+        if ($proxy_mode === 'default') {
+            $proxy = self::getDefaultProxy($user_id);
+            return $proxy === null ? 'Default proxy pool (no available proxy)' : self::formatProxyLabel($proxy, 'Default proxy pool');
+        }
+
+        return 'No proxy';
+    }
+
     public static function getDefaultProxyUrl(?int $user_id = null): ?string
     {
         $proxy = self::getDefaultProxy($user_id);

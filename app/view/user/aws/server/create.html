@@ -303,6 +303,30 @@
         $('#socks5_address, #socks5_port, #socks5_user, #socks5_passwd').prop('readonly', !manual);
     }
 
+    function escapeHtml(text) {
+        return $('<div></div>').text(text || '').html();
+    }
+
+    function currentProxySummary() {
+        var mode = $('#proxy_mode').val() || 'none';
+        if (mode === 'none') {
+            return 'No proxy';
+        }
+
+        if (mode === 'manual') {
+            var address = $('#socks5_address').val();
+            var port = $('#socks5_port').val();
+            return address && port ? 'Manual proxy: ' + address + ':' + port : 'Manual proxy (missing address)';
+        }
+
+        var option = getPoolOptionForMode(mode);
+        if (option.length > 0) {
+            return option.text().replace(/\s+/g, ' ').trim();
+        }
+
+        return mode === 'default' ? 'Default proxy pool (no available proxy)' : 'No proxy';
+    }
+
     function getProgress() {
         $.ajax({
             method: 'GET',
@@ -358,7 +382,9 @@
     });
 
     $('#create').on('click', function () {
-        mdui.confirm('创建过程中请不要离开本页面', '创建确认',
+        var proxySummary = currentProxySummary();
+        var confirmContent = '<div class="mdui-typo"><p>创建过程中请不要离开本页面</p><p><strong>Create proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>';
+        mdui.confirm(confirmContent, '创建确认',
             function () {
                 var load = new mdui.alert('<p id=\"hint\">准备中</p><div class=\"mdui-progress\"><div class=\"mdui-progress-determinate\"></div></div>', '进行中');
                 var cycle = setInterval(getProgress, 1500);

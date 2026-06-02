@@ -207,6 +207,7 @@ class UserAwsServer extends UserBase
         // 检查区域权限
         try {
             $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_label = ProxyController::getProxyLabelFromInput();
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', $e->getMessage()));
         }
@@ -229,11 +230,16 @@ class UserAwsServer extends UserBase
                 'disk_size' => $vm_disk_size,
                 'script' => base64_encode($vm_script),
             ],
+            'proxy' => [
+                'source' => $proxy_label,
+                'enabled' => $proxy_url !== null,
+            ],
         ];
         // 初始化创建任务
         $progress = 0;
         $steps = $vm_number * 3;
         $task_id = UserTask::create(session('user_id'), '创建AWS虚拟机', $params, $task_uuid);
+        UserTask::update($task_id, 0, 'Proxy for this create: ' . $proxy_label);
         // 开始创建
         foreach ($names as $vm_name) {
             $name = $vm_name . date('YmdHis', time());

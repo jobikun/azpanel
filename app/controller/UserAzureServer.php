@@ -233,15 +233,22 @@ class UserAzureServer extends UserBase
         // 创建http会话
         try {
             $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_label = ProxyController::getProxyLabelFromInput();
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', self::exceptionMessage($e)));
         }
 
+        $params['proxy'] = [
+            'source' => $proxy_label,
+            'enabled' => $proxy_url !== null,
+        ];
+
         // 初始化创建任务
         $progress = 0;
         $steps = ($vm_number * 7) + 6;
         $task_id = UserTask::create(session('user_id'), '创建虚拟机', $params, $task_uuid);
+        UserTask::update($task_id, 0, 'Proxy for this create: ' . $proxy_label);
 
         if ($create_ipv6) {
             $steps += 1; // 多了创建ipv6地址的任务

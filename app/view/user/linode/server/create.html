@@ -90,8 +90,23 @@
         return data;
     }
 
+    function escapeHtml(text) {
+        return $('<div></div>').text(text || '').html();
+    }
+
+    function currentProxySummary() {
+        var mode = $('#proxy_mode').val() || 'none';
+        if (mode === 'none') {
+            return 'No proxy';
+        }
+
+        return $('#proxy_mode option:selected').text().replace(/\s+/g, ' ').trim();
+    }
+
     $('#create').on('click', function () {
-        mdui.confirm('将按当前代理来源创建 Linode。确认创建吗？', '创建确认', function () {
+        var proxySummary = currentProxySummary();
+        var confirmContent = '<div class="mdui-typo"><p>将按当前代理来源创建 Linode。确认创建吗？</p><p><strong>Create proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>';
+        mdui.confirm(confirmContent, '创建确认', function () {
             $.ajax({
                 method: 'POST',
                 url: '/user/server/linode',
