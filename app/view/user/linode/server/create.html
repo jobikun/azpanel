@@ -33,8 +33,8 @@
             </div>
             <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
                 代理来源：<select id="proxy_mode" style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
-                    <option value="default">使用默认代理池</option>
                     <option value="none">不使用代理</option>
+                    <option value="default">使用默认代理池</option>
                     {volist name="proxies" id="proxy"}
                     <option value="pool:{$proxy.id}">{$proxy.name} - {$proxy.address}:{$proxy.port}{if $proxy.is_default == 1}（默认）{/if}</option>
                     {/volist}
@@ -83,7 +83,7 @@
 
 <script>
     function proxyRequestData(extra) {
-        var mode = $('#proxy_mode').val() || 'default';
+        var mode = $('#proxy_mode').val() || 'none';
         var data = extra || {};
         data.proxy_mode = mode;
         data.proxy_id = mode.indexOf('pool:') === 0 ? mode.replace('pool:', '') : 0;

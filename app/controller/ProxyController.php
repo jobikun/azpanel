@@ -87,11 +87,11 @@ class ProxyController extends UserBase
 
     public static function getProxyUrlFromInputOrDefault(?int $user_id = null): ?string
     {
-        $proxy_mode = input('proxy_mode/s', '');
+        $proxy_mode = trim((string) input('proxy_mode/s', ''));
         $proxy_id = input('proxy_id/d', 0);
         $user_id = $user_id ?? (int) session('user_id');
 
-        if ($proxy_mode === 'none') {
+        if ($proxy_mode === '' || $proxy_mode === 'none') {
             return null;
         }
 
@@ -115,7 +115,11 @@ class ProxyController extends UserBase
             return self::createSocks5ProxyUrlFromRecord($proxy);
         }
 
-        return self::getDefaultProxyUrl($user_id);
+        if ($proxy_mode === 'default') {
+            return self::getDefaultProxyUrl($user_id);
+        }
+
+        return null;
     }
 
     public static function createGuzzleOptions(?string $proxy_url = null, int $timeout = 60, int $connect_timeout = 15): array
@@ -140,7 +144,7 @@ class ProxyController extends UserBase
         ];
     }
 
-    public static function createGuzzleClient(?string $proxy_url = null, array $options = [], bool $use_default_proxy = true): Client
+    public static function createGuzzleClient(?string $proxy_url = null, array $options = [], bool $use_default_proxy = false): Client
     {
         if ($proxy_url === null && $use_default_proxy) {
             $proxy_url = self::getDefaultProxyUrl();
