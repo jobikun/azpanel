@@ -287,6 +287,23 @@
         $('#socks5_passwd').val(option.attr('data-passwd') || '');
     }
 
+    function optionDisplayText(option) {
+        if (!option || option.length === 0) {
+            return '';
+        }
+
+        var element = option[0];
+        if (element && typeof element.textContent === 'string') {
+            return element.textContent.replace(/\s+/g, ' ').trim();
+        }
+
+        if (typeof option.text === 'function') {
+            return String(option.text()).replace(/\s+/g, ' ').trim();
+        }
+
+        return '';
+    }
+
     function applyProxyMode() {
         var mode = $('#proxy_mode').val() || 'none';
         var manual = mode === 'manual';
@@ -321,10 +338,18 @@
 
         var option = getPoolOptionForMode(mode);
         if (option.length > 0) {
-            return option.text().replace(/\s+/g, ' ').trim();
+            return optionDisplayText(option) || 'Selected proxy pool';
         }
 
         return mode === 'default' ? 'Default proxy pool (no available proxy)' : 'No proxy';
+    }
+
+    function safeProxySummary() {
+        try {
+            return currentProxySummary();
+        } catch (e) {
+            return 'Selected proxy';
+        }
     }
 
     function getProgress() {
@@ -382,7 +407,7 @@
     });
 
     $('#create').on('click', function () {
-        var proxySummary = currentProxySummary();
+        var proxySummary = safeProxySummary();
         var confirmContent = '<div class="mdui-typo"><p>创建过程中请不要离开本页面</p><p><strong>Create proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>';
         mdui.confirm(confirmContent, '创建确认',
             function () {

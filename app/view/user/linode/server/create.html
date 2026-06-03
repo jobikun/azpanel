@@ -94,17 +94,43 @@
         return $('<div></div>').text(text || '').html();
     }
 
+    function selectedOptionText(selector) {
+        var option = $(selector);
+        if (!option || option.length === 0) {
+            return '';
+        }
+
+        var element = option[0];
+        if (element && typeof element.textContent === 'string') {
+            return element.textContent.replace(/\s+/g, ' ').trim();
+        }
+
+        if (typeof option.text === 'function') {
+            return String(option.text()).replace(/\s+/g, ' ').trim();
+        }
+
+        return '';
+    }
+
     function currentProxySummary() {
         var mode = $('#proxy_mode').val() || 'none';
         if (mode === 'none') {
             return 'No proxy';
         }
 
-        return $('#proxy_mode option:selected').text().replace(/\s+/g, ' ').trim();
+        return selectedOptionText('#proxy_mode option:selected') || 'Selected proxy pool';
+    }
+
+    function safeProxySummary() {
+        try {
+            return currentProxySummary();
+        } catch (e) {
+            return 'Selected proxy';
+        }
     }
 
     $('#create').on('click', function () {
-        var proxySummary = currentProxySummary();
+        var proxySummary = safeProxySummary();
         var confirmContent = '<div class="mdui-typo"><p>将按当前代理来源创建 Linode。确认创建吗？</p><p><strong>Create proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>';
         mdui.confirm(confirmContent, '创建确认', function () {
             $.ajax({
