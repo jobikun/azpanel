@@ -394,7 +394,7 @@ class UserAzureServer extends UserBase
                 );
 
                 // 创建网络安全组
-                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建网络安全组');
+                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建或复用网络安全组');
                 sleep(2);
                 $security_group_id = AzureApi::createNetworkSecurityGroups(
                     $client,
@@ -406,7 +406,7 @@ class UserAzureServer extends UserBase
 
                 // 创建公网ipv4地址
                 sleep(2);
-                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建 ipv4 地址');
+                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建或复用 ipv4 地址');
                 $ipv4 = AzureApi::createAzurePublicNetworkIpv4(
                     $client,
                     $account,
@@ -418,7 +418,7 @@ class UserAzureServer extends UserBase
 
                 if ($create_ipv6) {
                     // 创建公网ipv6地址
-                    UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建 ipv6 地址');
+                    UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建或复用 ipv6 地址');
                     sleep(2);
                     $ipv6 = AzureApi::createAzurePublicNetworkIpv6(
                         $client,
@@ -430,7 +430,7 @@ class UserAzureServer extends UserBase
                 }
 
                 // 创建虚拟网络
-                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建虚拟网络');
+                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建或复用虚拟网络');
                 AzureApi::createAzureVirtualNetwork(
                     $client,
                     $account,
@@ -442,7 +442,7 @@ class UserAzureServer extends UserBase
 
                 // 创建子网
                 sleep(3);
-                UserTask::update($task_id, (++$progress / $steps), '在虚拟网络 ' . $vm_virtual_network_name . ' 中创建子网');
+                UserTask::update($task_id, (++$progress / $steps), '在虚拟网络 ' . $vm_virtual_network_name . ' 中创建或复用子网');
                 $subnets = AzureApi::createAzureVirtualNetworkSubnets(
                     $client,
                     $account,
@@ -454,7 +454,7 @@ class UserAzureServer extends UserBase
 
                 // 创建网络接口
                 sleep(6);
-                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建网络接口');
+                UserTask::update($task_id, (++$progress / $steps), '在资源组 ' . $vm_resource_group_name . ' 中创建或复用网络接口');
                 $interfaces = AzureApi::createAzureVirtualNetworkInterfaces(
                     $client,
                     $account,

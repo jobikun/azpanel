@@ -83,17 +83,17 @@ class AzureList
             ],
             'Ubuntu_24_04' => [
                 'display' => 'Ubuntu 24.04 (gen2)',
-                'sku' => '24_04-lts-gen2',
+                'sku' => 'server',
                 'publisher' => 'Canonical',
                 'version' => 'latest',
-                'offer' => '0001-com-ubuntu-server-noble',
+                'offer' => 'ubuntu-24_04-lts',
             ],
             'Ubuntu_24_04_gen1' => [
                 'display' => 'Ubuntu 24.04',
-                'sku' => '24_04-lts',
+                'sku' => 'server-gen1',
                 'publisher' => 'Canonical',
                 'version' => 'latest',
-                'offer' => '0001-com-ubuntu-server-noble',
+                'offer' => 'ubuntu-24_04-lts',
             ],
             // WinData series
             'WinData_2025' => [

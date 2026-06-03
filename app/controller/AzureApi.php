@@ -396,6 +396,11 @@ class AzureApi extends BaseController
         ];
 
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourcegroups/' . $resource_group_name . '/providers/Microsoft.Network/networkSecurityGroups/' . $name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
+        $existing_id = self::getAzureResourceIdByUrl($client, $account, $url);
+        if ($existing_id !== null) {
+            return $existing_id;
+        }
+
         $result = $client->put($url, [
             'headers' => self::getToken($account->id, true, $client),
             'json' => $body,
@@ -433,6 +438,15 @@ class AzureApi extends BaseController
         ];
 
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/publicIPAddresses/' . $ip_name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
+        $existing = self::getAzureResourceByUrl($client, $account, $url);
+        if ($existing !== null) {
+            $version = $existing['properties']['publicIPAddressVersion'] ?? '';
+            if ($version !== '' && $version !== 'IPv4') {
+                throw new \RuntimeException('Existing public IP ' . $ip_name . ' is not IPv4.');
+            }
+
+            return $existing['id'];
+        }
 
         $promise = $client->requestAsync('PUT', $url, [
             'headers' => self::getToken($account->id, true, $client),
@@ -472,6 +486,15 @@ class AzureApi extends BaseController
         ];
 
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/publicIPAddresses/' . $ip_name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
+        $existing = self::getAzureResourceByUrl($client, $account, $url);
+        if ($existing !== null) {
+            $version = $existing['properties']['publicIPAddressVersion'] ?? '';
+            if ($version !== '' && $version !== 'IPv6') {
+                throw new \RuntimeException('Existing public IP ' . $ip_name . ' is not IPv6.');
+            }
+
+            return $existing['id'];
+        }
 
         $promise = $client->requestAsync('PUT', $url, [
             'headers' => self::getToken($account->id, true, $client),
@@ -538,6 +561,10 @@ class AzureApi extends BaseController
         }
 
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/virtualNetworks/' . $virtual_network_name . '?' . self::apiVersion(self::NETWORK_API_VERSION);
+        $existing = self::getAzureResourceByUrl($client, $account, $url);
+        if ($existing !== null && (!$create_ipv6 || self::resourceHasIpv6Prefix($existing))) {
+            return;
+        }
 
         $client->put($url, [
             'headers' => self::getToken($account->id, true, $client),
@@ -572,6 +599,10 @@ class AzureApi extends BaseController
         }
 
         $subnet_url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $resource_group_name . '/providers/Microsoft.Network/virtualNetworks/' . $virtual_network_name . '/subnets/default?' . self::apiVersion(self::NETWORK_API_VERSION);
+        $existing = self::getAzureResourceByUrl($client, $account, $subnet_url);
+        if ($existing !== null && (!$create_ipv6 || self::resourceHasIpv6Prefix($existing))) {
+            return $existing['id'];
+        }
 
         $result = $client->put($subnet_url, [
             'headers' => self::getToken($account->id, true, $client),
@@ -649,6 +680,20 @@ class AzureApi extends BaseController
         }
 
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourceGroups/' . $vm_name . '_group/providers/Microsoft.Network/networkInterfaces/' . $vm_name . '_vif?' . self::apiVersion(self::NETWORK_API_VERSION);
+        $existing = self::getAzureResourceByUrl($client, $account, $url);
+        if ($existing !== null) {
+            $has_ipv6 = false;
+            foreach ($existing['properties']['ipConfigurations'] ?? [] as $config) {
+                if (($config['properties']['privateIPAddressVersion'] ?? '') === 'IPv6') {
+                    $has_ipv6 = true;
+                    break;
+                }
+            }
+
+            if (!$create_ipv6 || $has_ipv6) {
+                return $existing['id'];
+            }
+        }
 
         $promise = $client->requestAsync('PUT', $url, [
             'headers' => self::getToken($account->id, true, $client),
@@ -872,6 +917,50 @@ class AzureApi extends BaseController
                 throw $e;
             }
         }
+    }
+
+    private static function getAzureResourceByUrl($client, $account, string $url): ?array
+    {
+        try {
+            $result = $client->get($url, [
+                'headers' => self::getToken($account->id, false, $client),
+            ]);
+            $resource = json_decode($result->getBody(), true);
+
+            return is_array($resource) ? $resource : null;
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
+                return null;
+            }
+
+            throw $e;
+        }
+    }
+
+    private static function getAzureResourceIdByUrl($client, $account, string $url): ?string
+    {
+        $resource = self::getAzureResourceByUrl($client, $account, $url);
+
+        return $resource['id'] ?? null;
+    }
+
+    private static function resourceHasIpv6Prefix(array $resource): bool
+    {
+        $prefixes = $resource['properties']['addressSpace']['addressPrefixes']
+            ?? $resource['properties']['addressPrefixes']
+            ?? [];
+
+        if (isset($resource['properties']['addressPrefix'])) {
+            $prefixes[] = $resource['properties']['addressPrefix'];
+        }
+
+        foreach ($prefixes as $prefix) {
+            if (strpos((string) $prefix, ':') !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static function createAzureVm($client, $account, $vm_name, $vm_config, $vm_image, $interfaces, $location)
