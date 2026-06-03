@@ -711,6 +711,178 @@ class UserAzure extends UserBase
         return json(Tools::msg('1', '更新结果', $content));
     }
 
+    public function checkMalaysiaWest($id)
+    {
+        $account = Azure::where('user_id', session('user_id'))->find($id);
+        if ($account === null) {
+            return json(Tools::msg('0', 'Malaysia West 检查失败', 'Azure 账户不存在或不属于当前用户'));
+        }
+
+        $location = 'malaysiawest';
+
+        try {
+            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_label = ProxyController::getProxyLabelFromInput();
+            $client = ProxyController::createGuzzleClient($proxy_url, [], false);
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', 'Malaysia West 检查失败', Tools::exceptionMessage($e)));
+        }
+
+        $providers = ['Microsoft.Compute', 'Microsoft.Network', 'Microsoft.Capacity'];
+        $provider_lines = [];
+        $provider_status = [];
+
+        foreach ($providers as $provider) {
+            $registered = false;
+            $state = 'Registering';
+            try {
+                AzureApi::registerMainAzureProviders($client, $account, $provider);
+                $registered = true;
+            } catch (\Exception $e) {
+                $state = 'Register failed: ' . Tools::exceptionMessage($e);
+            }
+
+            try {
+                $provider_data = AzureApi::getAzureProvider($client, $account, $provider);
+                $state = $provider_data['registrationState'] ?? $state;
+                $registered = $registered || in_array($state, ['Registered', 'Registering'], true);
+            } catch (\Exception $e) {
+                if ($registered) {
+                    $state = 'Registering';
+                } else {
+                    $state = 'Read failed: ' . Tools::exceptionMessage($e);
+                }
+            }
+
+            $provider_status[$provider] = $registered;
+            $provider_lines[] = self::escapeHtml($provider . ': ' . $state);
+        }
+
+        if (!empty($provider_status['Microsoft.Compute']) && !empty($provider_status['Microsoft.Network'])) {
+            $account->providers_register = 1;
+        }
+        if (!empty($provider_status['Microsoft.Capacity'])) {
+            $account->reg_capacity = 1;
+        }
+
+        $subscription_state = 'Unknown';
+        $subscription_name = '';
+        try {
+            $sub_info = AzureApi::getAzureSubscription($account->id, $client);
+            $subscription = self::findAzureSubscription($sub_info, $account->az_sub_id);
+            if (!empty($subscription)) {
+                $subscription_state = $subscription['state'] ?? 'Unknown';
+                $subscription_name = $subscription['displayName'] ?? '';
+                $account->az_sub = json_encode($sub_info);
+                $account->az_sub_status = $subscription_state;
+                if (isset($subscription['subscriptionPolicies']['quotaId'])) {
+                    $account->az_sub_type = self::discern($subscription['subscriptionPolicies']['quotaId']);
+                }
+                $account->az_sub_updated_at = time();
+            }
+        } catch (\Exception $e) {
+            $subscription_state = 'Read failed: ' . Tools::exceptionMessage($e);
+        }
+
+        $account->updated_at = time();
+        $account->save();
+
+        $location_status = 'Unknown';
+        try {
+            $locations = AzureApi::getAzureSubscriptionLocations($account, $client);
+            $location_status = 'Not listed';
+            foreach ($locations['value'] ?? [] as $item) {
+                if (strtolower($item['name'] ?? '') === $location) {
+                    $location_status = 'Listed: ' . ($item['displayName'] ?? 'Malaysia West');
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            $location_status = 'Read failed: ' . Tools::exceptionMessage($e);
+        }
+
+        $sku_total = 0;
+        $available_skus = [];
+        $sku_status = '';
+        try {
+            $skus = AzureApi::getResourceSkusList($client, $account, $location);
+            foreach ($skus['value'] ?? [] as $sku) {
+                if (($sku['resourceType'] ?? '') !== 'virtualMachines') {
+                    continue;
+                }
+                ++$sku_total;
+                $sku_name = $sku['name'] ?? '';
+                if ($sku_name !== '' && !Str::contains($sku_name, 'p') && !UserAzureServer::hasSkuRestrictionForLocation($sku, $location)) {
+                    $available_skus[] = $sku_name;
+                }
+            }
+            sort($available_skus);
+            $sku_status = count($available_skus) . ' available / ' . $sku_total . ' total';
+        } catch (\Exception $e) {
+            $sku_status = 'Read failed: ' . Tools::exceptionMessage($e);
+        }
+
+        $core_quota = 'Unknown';
+        $family_quotas = [];
+        try {
+            $quotas = AzureApi::getQuota($account, $location, $client);
+            foreach ($quotas['value'] ?? [] as $quota) {
+                $properties = $quota['properties'] ?? [];
+                $name = $properties['name']['value'] ?? '';
+                $note = $properties['name']['localizedValue'] ?? $name;
+                $usage = $properties['currentValue'] ?? 0;
+                $limit = $properties['limit'] ?? 0;
+                if ($name === 'cores') {
+                    $core_quota = $usage . ' / ' . $limit;
+                }
+                if ((int) $limit > 0 && $name !== 'cores') {
+                    $family_quotas[] = self::escapeHtml($note . ': ' . $usage . ' / ' . $limit);
+                }
+            }
+        } catch (\Exception $e) {
+            $core_quota = 'Read failed: ' . Tools::exceptionMessage($e);
+        }
+
+        $preview_skus = array_slice($available_skus, 0, 20);
+        $content = '<div class="mdui-typo">'
+            . '<p><strong>Malaysia West (malaysiawest)</strong></p>'
+            . '<p>Proxy: ' . self::escapeHtml($proxy_label) . '</p>'
+            . '<p>Subscription: ' . self::escapeHtml(trim($subscription_name . ' ' . $subscription_state)) . '</p>'
+            . '<p>Provider: ' . implode('<br>', $provider_lines) . '</p>'
+            . '<p>Location: ' . self::escapeHtml($location_status) . '</p>'
+            . '<p>VM SKUs: ' . self::escapeHtml($sku_status) . '</p>';
+
+        if (!empty($preview_skus)) {
+            $content .= '<p>First available SKUs: <code>' . self::escapeHtml(implode(', ', $preview_skus)) . '</code></p>';
+        }
+
+        $content .= '<p>Core quota: ' . self::escapeHtml($core_quota) . '</p>';
+        if (!empty($family_quotas)) {
+            $content .= '<p>Family quotas:<br>' . implode('<br>', array_slice($family_quotas, 0, 12)) . '</p>';
+        }
+        $content .= '<p>如果 Provider 刚刚从未注册变为 Registering，请等待 1-5 分钟后重新检查或创建。</p>'
+            . '<p>这个检查只能确认订阅、地区、规格和配额的当前状态；最终是否能创建仍以 Azure ARM 返回结果为准。</p>'
+            . '</div>';
+
+        return json(Tools::msg('1', 'Malaysia West 检查结果', $content));
+    }
+
+    private static function findAzureSubscription(array $sub_info, ?string $subscription_id): array
+    {
+        foreach ($sub_info['value'] ?? [] as $subscription) {
+            if (($subscription['subscriptionId'] ?? '') === $subscription_id) {
+                return $subscription;
+            }
+        }
+
+        return $sub_info['value']['0'] ?? [];
+    }
+
+    private static function escapeHtml($value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+
     public function deleteAzureDisabledSubscription()
     {
         $accounts = Azure::where('user_id', session('user_id'))

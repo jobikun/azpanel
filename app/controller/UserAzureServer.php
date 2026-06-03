@@ -1318,7 +1318,7 @@ class UserAzureServer extends UserBase
         return $default;
     }
 
-    private static function hasSkuRestrictionForLocation(array $sku, string $location): bool
+    public static function hasSkuRestrictionForLocation(array $sku, string $location): bool
     {
         foreach ($sku['restrictions'] ?? [] as $restriction) {
             $values = array_map('strtolower', $restriction['values'] ?? []);

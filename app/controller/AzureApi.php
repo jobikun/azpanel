@@ -94,6 +94,27 @@ class AzureApi extends BaseController
         ]);
     }
 
+    public static function getAzureProvider($client, $account, string $provider): array
+    {
+        $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/providers/' . $provider . '?' . self::apiVersion(self::RESOURCES_API_VERSION);
+        $result = $client->get($url, [
+            'headers' => self::getToken($account->id, false, $client),
+        ]);
+
+        return json_decode($result->getBody(), true);
+    }
+
+    public static function getAzureSubscriptionLocations($account, ?Client $client = null): array
+    {
+        $client = $client ?? ProxyController::createGuzzleClient();
+        $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/locations?' . self::apiVersion(self::SUBSCRIPTIONS_API_VERSION);
+        $result = $client->get($url, [
+            'headers' => self::getToken($account->id, false, $client),
+        ]);
+
+        return json_decode($result->getBody(), true);
+    }
+
     public static function getAzureResourceGroupsList($account_id, $az_sub_id, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/resources/resource-groups/list

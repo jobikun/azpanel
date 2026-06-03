@@ -45,6 +45,11 @@
                                         </a>
                                     </li>
                                     <li class="mdui-menu-item">
+                                        <a class="mdui-ripple" onclick="checkMalaysiaWest(this)" data-id="{$account.id}">
+                                            <i class="mdui-menu-item-icon mdui-icon material-icons">public</i>Malaysia West 检查/开启
+                                        </a>
+                                    </li>
+                                    <li class="mdui-menu-item">
                                         <a target="_blank" class="mdui-ripple" href="/user/azure/{$account.id}">
                                             <i class="mdui-menu-item-icon mdui-icon material-icons">redeem</i>订阅详情
                                         </a>
@@ -315,6 +320,34 @@
                     success: function (data) {
                         load.close();
                         mdui.alert(data.content, data.title);
+                    }
+                });
+            },
+            function () { },
+            {
+                confirmText: "确定",
+                cancelText: "取消"
+            }
+        );
+    };
+
+    function checkMalaysiaWest(that) {
+        let id = $(that).data('id');
+        mdui.confirm('将注册 Azure 必要资源提供程序，并检查 Malaysia West 的地区、规格和配额状态。是否继续？', 'Malaysia West 检查',
+            function () {
+                var load = new mdui.alert('<div class=\"mdui-progress\"><div class=\"mdui-progress-indeterminate\"></div></div>', '进行中');
+                $.ajax({
+                    method: 'POST',
+                    url: "/user/azure/malaysiawest/" + id,
+                    dataType: "json",
+                    success: function (data) {
+                        load.close();
+                        mdui.alert(data.content, data.title);
+                    },
+                    error: function (xhr) {
+                        load.close();
+                        var message = xhr.responseText ? $('<div>').text(xhr.responseText.substring(0, 1200)).html() : '请求失败';
+                        mdui.alert(message, 'Malaysia West 检查失败');
                     }
                 });
             },

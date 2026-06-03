@@ -55,6 +55,7 @@ Route::get('/user/docs',                          'UserDashboard/docs');
 // Azure 账户
 Route::resource('/user/azure',                    'UserAzure');
 Route::post('/user/azure/quota/:id',              'UserAzure/queryAccountQuota');
+Route::post('/user/azure/malaysiawest/:id',       'UserAzure/checkMalaysiaWest');
 Route::post('/user/azure/cost/:id',               'UserAzure/estimatedCost');
 Route::post('/user/azure/refresh',                'UserAzure/refreshAllAzureSubscriptionStatus');
 Route::put('/user/azure/share',                   'UserAzure/shareAccount');

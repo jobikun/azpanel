@@ -248,11 +248,17 @@
 
             <div class="mdui-card mdui-m-t-2">
                 <div class="mdui-card-actions">
-                    <div class="mdui-row-xs-3">
+                    <div class="mdui-row-xs-1 mdui-row-sm-2 mdui-row-md-4">
                         <div class="mdui-col">
                             <button id="load_available_models"
                                 class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-btn-block mdui-color-indigo">
                                 加载可用型号
+                            </button>
+                        </div>
+                        <div class="mdui-col">
+                            <button id="check_malaysiawest"
+                                class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-btn-block mdui-color-indigo">
+                                检查 Malaysia West
                             </button>
                         </div>
                         <div class="mdui-col">
@@ -541,6 +547,44 @@
 
     $('#load_available_models').on('click', function () {
         loadAvailableModels(false);
+    });
+
+    $('#check_malaysiawest').on('click', function () {
+        var account = $('#vm_account').val();
+        if (!account) {
+            mdui.alert('请先选择 Azure 账户', 'Malaysia West 检查失败');
+            return;
+        }
+
+        var proxySummary = currentProxySummary();
+        mdui.confirm('<div class="mdui-typo"><p>将使用当前选择的账户和代理检查/开启 Malaysia West。</p><p><strong>Proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>', 'Malaysia West 检查',
+            function () {
+                var load = new mdui.alert('<div class=\"mdui-progress\"><div class=\"mdui-progress-indeterminate\"></div></div>', '进行中');
+                $.ajax({
+                    method: 'POST',
+                    url: "/user/azure/malaysiawest/" + account,
+                    data: proxyRequestData({}),
+                    dataType: "json",
+                    success: function (data) {
+                        load.close();
+                        mdui.alert(data.content, data.title);
+                        if ($('#vm_location').val() === 'malaysiawest') {
+                            loadAvailableModels(false);
+                        }
+                    },
+                    error: function (xhr) {
+                        load.close();
+                        var message = xhr.responseText ? $('<div>').text(xhr.responseText.substring(0, 1200)).html() : '请求失败';
+                        mdui.alert(message, 'Malaysia West 检查失败');
+                    }
+                });
+            },
+            function () { },
+            {
+                confirmText: "确定",
+                cancelText: "取消"
+            }
+        );
     });
 
     $('#vm_location, #vm_account').on('change', function () {
