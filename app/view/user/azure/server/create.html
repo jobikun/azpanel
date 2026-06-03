@@ -448,6 +448,18 @@
     var availableLoadTimer = null;
     var availableLoadSeq = 0;
 
+    function setCreateButtonBlocked(reason) {
+        var button = $('#create');
+        button.prop('disabled', false);
+        button.attr('data-blocked-reason', reason || '');
+
+        if (reason) {
+            button.removeClass('mdui-color-pink').addClass('mdui-color-grey');
+        } else {
+            button.removeClass('mdui-color-grey').addClass('mdui-color-pink');
+        }
+    }
+
     function scheduleAutoLoadAvailableModels() {
         clearTimeout(availableLoadTimer);
         availableLoadTimer = setTimeout(function () {
@@ -459,7 +471,7 @@
         $('#vm_size').empty();
         if (!Array.isArray(data) || data.length === 0) {
             $('#vm_size').append('<option value="">当前地区没有可用规格</option>');
-            $('#create').prop('disabled', true);
+            setCreateButtonBlocked('当前地区没有可用规格，请更换地区、账户或点击“检查 Malaysia West”。');
             inst.handleUpdate();
             return 0;
         }
@@ -471,7 +483,7 @@
         if (preferredSize && $('#vm_size option[value="' + preferredSize + '"]').length > 0) {
             $('#vm_size').val(preferredSize);
         }
-        $('#create').prop('disabled', false);
+        setCreateButtonBlocked('');
         inst.handleUpdate();
         return data.length;
     }
@@ -487,7 +499,7 @@
         }
 
         $('#load_available_models').prop('disabled', true);
-        $('#create').prop('disabled', true);
+        setCreateButtonBlocked('正在加载当前地区可用规格，请稍后再创建。');
         mdui.snackbar({
             message: auto ? '正在根据地区加载可用规格...' : '加载中...',
             position: 'top',
@@ -507,7 +519,7 @@
                     return;
                 }
                 if (data && data.status == '0') {
-                    $('#create').prop('disabled', true);
+                    setCreateButtonBlocked(data.content || '加载可用规格失败，请检查账号、代理或网络。');
                     mdui.snackbar({
                         message: data.content || '加载可用规格失败',
                         position: 'top',
@@ -536,6 +548,7 @@
                     position: 'top',
                     timeout: '5000',
                 });
+                setCreateButtonBlocked(message);
             },
             complete: function () {
                 if (seq === availableLoadSeq) {
@@ -650,6 +663,27 @@
     });
 
     $('#create').on('click', function () {
+        var blockedReason = $('#create').attr('data-blocked-reason') || '';
+        if (blockedReason) {
+            mdui.alert(blockedReason, '创建失败');
+            return;
+        }
+
+        if (!$('#vm_account').val()) {
+            mdui.alert('请先选择 Azure 账户', '创建失败');
+            return;
+        }
+
+        if (!$('#vm_location').val()) {
+            mdui.alert('请先选择地区', '创建失败');
+            return;
+        }
+
+        if (!$('#vm_size').val()) {
+            mdui.alert('请先加载并选择可用规格', '创建失败');
+            return;
+        }
+
         var proxySummary = currentProxySummary();
         var confirmContent = '<div class="mdui-typo"><p>创建过程中请不要离开本页面</p><p><strong>Create proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>';
         mdui.confirm(confirmContent, '创建确认',
@@ -722,6 +756,7 @@
     $("#vm_disk_size").prop('value', '{$personalise.vm_disk_size}');
     $("#vm_default_identity").prop('value', '{$personalise.vm_default_identity}');
     $("#vm_default_credentials").prop('value', '{$personalise.vm_default_credentials}');
+    setCreateButtonBlocked('正在加载当前地区可用规格，请稍后再创建。');
     scheduleAutoLoadAvailableModels();
 </script>
 {include file="../app/view/user/footer.html" /}

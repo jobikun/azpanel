@@ -93,8 +93,8 @@ class UserAzureServer extends UserBase
             'accounts' => $accounts,
             'personalise' => $personalise,
             'traffic_rules' => $traffic_rules,
-            'sizes' => AzureList::sizes(),
-            'images' => AzureList::images(),
+            'sizes' => AzureList::commonSizes(),
+            'images' => AzureList::commonImages(),
             'disk_sizes' => AzureList::diskSizes(),
             'locations' => AzureList::locations(),
             'proxies' => $this->getProxies(),
@@ -295,22 +295,18 @@ class UserAzureServer extends UserBase
                     UserTask::end($task_id, true, json_encode(['msg' => $message]), true);
                     return json(Tools::msg('0', '创建失败', $message));
                 }
-                $hyper_v_generations = $limit['capabilities']['4']['value'] ?? '';
                 foreach ($limit['capabilities'] ?? [] as $capability) {
-                    if (($capability['name'] ?? '') === 'HyperVGenerations') {
-                        $hyper_v_generations = $capability['value'];
-                    }
                     if (($capability['name'] ?? '') === 'vCPUs') {
                         $single_size_core = (int) $capability['value'];
                     }
                 }
-                if ($hyper_v_generations === 'V1') {
-                    if (Str::contains($images[$vm_image]['sku'], 'gen2') || Str::contains($images[$vm_image]['sku'], 'g2')) {
-                        UserTask::end($task_id, true, json_encode(
-                            ['msg' => 'The virtual machine model is not compatible with the image.']
-                        ), true);
-                        return json(Tools::msg('0', '创建失败', '此规格虚拟机不可使用镜像列表中包含 gen2 关键词的选项'));
-                    }
+                if ((Str::contains($images[$vm_image]['sku'], 'gen2') || Str::contains($images[$vm_image]['sku'], 'g2'))
+                    && !self::supportsHyperVGeneration($limit, 'V2')
+                ) {
+                    UserTask::end($task_id, true, json_encode(
+                        ['msg' => 'The virtual machine model is not compatible with the image.']
+                    ), true);
+                    return json(Tools::msg('0', '创建失败', '此规格虚拟机不支持 Gen2 镜像，请重新加载并选择常用可用规格'));
                 }
                 $size_family = $limit['family'] ?? null;
             }
@@ -1255,18 +1251,38 @@ class UserAzureServer extends UserBase
 
         foreach ($limits['value'] as $limit) {
             if ($limit['resourceType'] === 'virtualMachines') {
+                $sku_name = $limit['name'] ?? '';
                 // 若虚拟机规格中包含关键字p 则代表是arm64处理器 与默认镜像不兼容 因此需要过滤掉
-                if (!Str::contains($limit['name'], 'p') && !self::hasSkuRestrictionForLocation($limit, $location)) {
+                if ($sku_name !== ''
+                    && !Str::contains($sku_name, 'p')
+                    && !self::hasSkuRestrictionForLocation($limit, $location)
+                    && self::supportsHyperVGeneration($limit, 'V2')
+                    && self::isCommonAzureSize($limit)
+                ) {
                     $cpu = self::getSkuCapability($limit, 'vCPUs', $limit['capabilities']['2']['value'] ?? '?');
                     $memory = self::getSkuCapability($limit, 'MemoryGB', $limit['capabilities']['5']['value'] ?? '?');
                     $size = [
-                        'name' => $limit['name'],
-                        'size_name' => $limit['name'] . ' => ' . $cpu . 'C_' . $memory . 'GB',
+                        'name' => $sku_name,
+                        'size_name' => $sku_name . ' => ' . $cpu . 'C_' . $memory . 'GB',
+                        'order' => self::commonSizeOrder((float) $cpu, (float) $memory),
                     ];
                     array_push($set, $size);
                 }
             }
         }
+
+        usort($set, function ($left, $right) {
+            if ($left['order'] === $right['order']) {
+                return strcmp($left['name'], $right['name']);
+            }
+
+            return $left['order'] <=> $right['order'];
+        });
+
+        foreach ($set as &$size) {
+            unset($size['order']);
+        }
+        unset($size);
 
         return json($set);
     }
@@ -1316,6 +1332,41 @@ class UserAzureServer extends UserBase
         }
 
         return $default;
+    }
+
+    private static function supportsHyperVGeneration(array $sku, string $generation): bool
+    {
+        $generations = (string) self::getSkuCapability($sku, 'HyperVGenerations', '');
+        if ($generations === '') {
+            return false;
+        }
+
+        $set = array_map('trim', explode(',', strtoupper($generations)));
+        return in_array(strtoupper($generation), $set, true);
+    }
+
+    private static function isCommonAzureSize(array $sku): bool
+    {
+        $name = $sku['name'] ?? '';
+        if (!preg_match('/^Standard_B/i', $name)) {
+            return false;
+        }
+
+        $cpu = (float) self::getSkuCapability($sku, 'vCPUs', 0);
+        $memory = (float) self::getSkuCapability($sku, 'MemoryGB', 0);
+
+        return self::commonSizeOrder($cpu, $memory) < 999;
+    }
+
+    private static function commonSizeOrder(float $cpu, float $memory): int
+    {
+        foreach (AzureList::commonSizeProfiles() as $index => $profile) {
+            if (abs($cpu - $profile['cpu']) < 0.01 && abs($memory - $profile['memory']) < 0.01) {
+                return $index;
+            }
+        }
+
+        return 999;
     }
 
     public static function hasSkuRestrictionForLocation(array $sku, string $location): bool

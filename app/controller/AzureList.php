@@ -11,6 +11,7 @@ class AzureList
         // az vm image list --publisher Canonical --offer UbuntuServer --all --output table
         // az vm image list --publisher Debian --offer debian-11 --all --output table
         // az vm image list --publisher Debian --offer debian-12 --all --output table
+        // az vm image list --publisher Debian --offer debian-13 --all --output table
         // az vm image list --publisher MicrosoftWindowsServer --all --output table
         // az vm image list --publisher MicrosoftWindowsDesktop --offer windows-11 --all --output table
 
@@ -43,6 +44,13 @@ class AzureList
                 'publisher' => 'Debian',
                 'version' => 'latest',
                 'offer' => 'debian-12',
+            ],
+            'Debian_13' => [
+                'display' => 'Debian 13 (gen2)',
+                'sku' => '13-gen2',
+                'publisher' => 'Debian',
+                'version' => 'latest',
+                'offer' => 'debian-13',
             ],
             // Ubuntu series
             'Ubuntu_20_04' => [
@@ -120,6 +128,25 @@ class AzureList
         ];
     }
 
+    public static function commonImages()
+    {
+        $images = self::images();
+        $keys = [
+            'Debian_13',
+            'Debian_12',
+            'Ubuntu_24_04',
+        ];
+        $common = [];
+
+        foreach ($keys as $key) {
+            if (isset($images[$key])) {
+                $common[$key] = $images[$key];
+            }
+        }
+
+        return $common;
+    }
+
     public static function sizes()
     {
         // https://azureprice.net
@@ -147,6 +174,12 @@ class AzureList
                 'cpu' => '2',
                 'memory' => '1',
                 'cost' => 0.0094 * 720,
+                'acc' => false,
+            ],
+            'Standard_B2ls_v2' => [
+                'cpu' => '2',
+                'memory' => '4',
+                'cost' => 0.0330 * 720,
                 'acc' => false,
             ],
             'Standard_B1ms' => [
@@ -234,6 +267,34 @@ class AzureList
                 'acc' => false,
             ],
         ];
+    }
+
+    public static function commonSizeProfiles(): array
+    {
+        return [
+            ['cpu' => 1.0, 'memory' => 1.0, 'label' => '1C_1G'],
+            ['cpu' => 2.0, 'memory' => 2.0, 'label' => '2C_2G'],
+            ['cpu' => 2.0, 'memory' => 4.0, 'label' => '2C_4G'],
+        ];
+    }
+
+    public static function commonSizes(): array
+    {
+        $common = [];
+        foreach (self::sizes() as $name => $size) {
+            if (!preg_match('/^Standard_B/i', $name)) {
+                continue;
+            }
+
+            foreach (self::commonSizeProfiles() as $profile) {
+                if ((float) $size['cpu'] === $profile['cpu'] && (float) $size['memory'] === $profile['memory']) {
+                    $common[$name] = $size;
+                    break;
+                }
+            }
+        }
+
+        return $common;
     }
 
     public static function locations()
