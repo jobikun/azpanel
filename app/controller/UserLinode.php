@@ -109,10 +109,12 @@ class UserLinode extends UserBase
 
     private function getProxies()
     {
-        return UserProxy::where('user_id', session('user_id'))
+        $proxies = UserProxy::where('user_id', session('user_id'))
             ->where('enabled', 1)
             ->order('is_default', 'desc')
             ->order('id', 'desc')
             ->select();
+
+        return ProxyController::normalizeProxyRecords($proxies);
     }
 }

@@ -52,6 +52,7 @@ class UserAwsServer extends UserBase
             ->order('is_default', 'desc')
             ->order('id', 'desc')
             ->select();
+        $proxies = ProxyController::normalizeProxyRecords($proxies);
 
         View::assign([
             'accounts' => $accounts,

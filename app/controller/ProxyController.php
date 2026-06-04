@@ -7,8 +7,36 @@ use GuzzleHttp\Client;
 
 class ProxyController extends UserBase
 {
-    public static function createSocks5ProxyUrl(string $addr, int $port, string $user = '', string $passwd = ''): string
+    public static function normalizeProxyProtocol(string $protocol): string
     {
+        $protocol = strtolower(trim($protocol));
+        if (in_array($protocol, ['http', 'https'], true)) {
+            return 'http';
+        }
+        if (in_array($protocol, ['socks5', 'socks5h', 'socks'], true)) {
+            return 'socks5';
+        }
+
+        return 'socks5';
+    }
+
+    public static function normalizeProxyRecords($proxies)
+    {
+        foreach ($proxies as $proxy) {
+            $proxy->protocol = self::normalizeProxyProtocol((string) ($proxy->protocol ?? 'socks5'));
+        }
+
+        return $proxies;
+    }
+
+    public static function createProxyUrl(
+        string $protocol,
+        string $addr,
+        int $port,
+        string $user = '',
+        string $passwd = ''
+    ): string {
+        $protocol = self::normalizeProxyProtocol($protocol);
         $addr = trim($addr);
         $user = trim($user);
 
@@ -29,12 +57,24 @@ class ProxyController extends UserBase
             $auth .= '@';
         }
 
-        return "socks5h://{$auth}{$addr}:{$port}";
+        $scheme = $protocol === 'http' ? 'http' : 'socks5h';
+        return "{$scheme}://{$auth}{$addr}:{$port}";
+    }
+
+    public static function createSocks5ProxyUrl(string $addr, int $port, string $user = '', string $passwd = ''): string
+    {
+        return self::createProxyUrl('socks5', $addr, $port, $user, $passwd);
     }
 
     public static function createSocks5ProxyUrlFromInput(): string
     {
-        return self::createSocks5ProxyUrl(
+        return self::createProxyUrlFromInput();
+    }
+
+    public static function createProxyUrlFromInput(): string
+    {
+        return self::createProxyUrl(
+            (string) input('proxy_protocol/s', 'socks5'),
             (string) input('socks5_address/s', ''),
             (int) input('socks5_port/d', 0),
             (string) input('socks5_user/s', ''),
@@ -67,7 +107,13 @@ class ProxyController extends UserBase
 
     public static function createSocks5ProxyUrlFromRecord(UserProxy $proxy): string
     {
-        return self::createSocks5ProxyUrl(
+        return self::createProxyUrlFromRecord($proxy);
+    }
+
+    public static function createProxyUrlFromRecord(UserProxy $proxy): string
+    {
+        return self::createProxyUrl(
+            (string) ($proxy->protocol ?? 'socks5'),
             $proxy->address,
             (int) $proxy->port,
             $proxy->username ?? '',
@@ -81,8 +127,9 @@ class ProxyController extends UserBase
         $address = trim((string) ($proxy->address ?? ''));
         $port = (int) ($proxy->port ?? 0);
         $label = $name !== '' ? $name : ('#' . $proxy->id);
+        $protocol = strtoupper(self::normalizeProxyProtocol((string) ($proxy->protocol ?? 'socks5')));
 
-        return $prefix . ': ' . $label . ' (' . $address . ':' . $port . ')';
+        return $prefix . ': ' . $label . ' [' . $protocol . '] (' . $address . ':' . $port . ')';
     }
 
     public static function getProxyLabelFromInput(?int $user_id = null): string
@@ -91,7 +138,7 @@ class ProxyController extends UserBase
         $proxy_id = input('proxy_id/d', 0);
         $user_id = $user_id ?? (int) session('user_id');
 
-        if ($proxy_mode === '' || $proxy_mode === 'none') {
+        if ($proxy_mode === 'none' || ($proxy_mode === '' && $proxy_id <= 0)) {
             return 'No proxy';
         }
 
@@ -99,8 +146,9 @@ class ProxyController extends UserBase
         if ($manual_enabled) {
             $address = trim((string) input('socks5_address/s', ''));
             $port = (int) input('socks5_port/d', 0);
+            $protocol = strtoupper(self::normalizeProxyProtocol((string) input('proxy_protocol/s', 'socks5')));
 
-            return $address !== '' && $port > 0 ? ('Manual proxy: ' . $address . ':' . $port) : 'Manual proxy (missing address)';
+            return $address !== '' && $port > 0 ? ('Manual proxy [' . $protocol . ']: ' . $address . ':' . $port) : 'Manual proxy (missing address)';
         }
 
         if ($proxy_id > 0 || str_starts_with($proxy_mode, 'pool:')) {
@@ -130,7 +178,7 @@ class ProxyController extends UserBase
             return null;
         }
 
-        return self::createSocks5ProxyUrlFromRecord($proxy);
+        return self::createProxyUrlFromRecord($proxy);
     }
 
     public static function getProxyUrlFromInputOrDefault(?int $user_id = null): ?string
@@ -139,13 +187,13 @@ class ProxyController extends UserBase
         $proxy_id = input('proxy_id/d', 0);
         $user_id = $user_id ?? (int) session('user_id');
 
-        if ($proxy_mode === '' || $proxy_mode === 'none') {
+        if ($proxy_mode === 'none' || ($proxy_mode === '' && $proxy_id <= 0)) {
             return null;
         }
 
         $manual_enabled = $proxy_mode === 'manual' || input('socks5_switch') === 'true' || input('socks5_switch') === true;
         if ($manual_enabled && trim((string) input('socks5_address/s', '')) !== '') {
-            return self::createSocks5ProxyUrlFromInput();
+            return self::createProxyUrlFromInput();
         }
 
         if ($proxy_id > 0 || str_starts_with($proxy_mode, 'pool:')) {
@@ -160,7 +208,7 @@ class ProxyController extends UserBase
                 throw new \InvalidArgumentException('Selected proxy was not found or disabled.');
             }
 
-            return self::createSocks5ProxyUrlFromRecord($proxy);
+            return self::createProxyUrlFromRecord($proxy);
         }
 
         if ($proxy_mode === 'default') {
@@ -209,7 +257,7 @@ class ProxyController extends UserBase
             if ($proxy_id > 0 || $proxy_mode !== '') {
                 $proxy_url = self::getProxyUrlFromInputOrDefault();
             } else {
-                $proxy_url = self::createSocks5ProxyUrlFromInput();
+                $proxy_url = self::createProxyUrlFromInput();
             }
 
             $client = new Client(self::createGuzzleOptions($proxy_url, 5, 5));

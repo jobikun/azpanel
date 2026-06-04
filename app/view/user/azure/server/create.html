@@ -188,7 +188,7 @@
                     <div class="mdui-panel" mdui-panel>
                         <div class="mdui-panel-item">
                             <div class="mdui-panel-item-header">
-                                <div class="mdui-panel-item-title">SOCKS5代理</div>
+                                <div class="mdui-panel-item-title">代理</div>
                                 <i class="mdui-panel-item-arrow mdui-icon material-icons">keyboard_arrow_down</i>
                             </div>
                             <div class="mdui-panel-item-body">
@@ -198,7 +198,7 @@
                                             <option value="none">不使用代理</option>
                                             <option value="default">使用默认代理池</option>
                                             {volist name="proxies" id="proxy"}
-                                            <option value="pool:{$proxy.id}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-user="{$proxy.username}" data-passwd="{$proxy.password}" data-default="{$proxy.is_default}">{$proxy.name} - {$proxy.address}:{$proxy.port}{if $proxy.is_default == 1}（默认）{/if}</option>
+                                            <option value="pool:{$proxy.id}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-user="{$proxy.username}" data-passwd="{$proxy.password}" data-default="{$proxy.is_default}">{$proxy.name} - [{:strtoupper($proxy.protocol)}] {$proxy.address}:{$proxy.port}{if $proxy.is_default == 1}（默认）{/if}</option>
                                             {/volist}
                                             <option value="manual">手动填写下方代理</option>
                                         </select>
@@ -211,6 +211,15 @@
                                             <input type="checkbox" id="socks5_switch" />
                                             <i class="mdui-switch-icon"></i>
                                         </label>
+                                    </div>
+                                </div>
+                                <div class="mdui-col-sm-12 mdui-col-md-6">
+                                    <div class="mdui-m-t-2">
+                                        协议：
+                                        <select id="proxy_protocol" class="mdui-select" mdui-select>
+                                            <option value="socks5">SOCKS5</option>
+                                            <option value="http">HTTP</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="mdui-col-sm-12 mdui-col-md-6">
@@ -296,7 +305,7 @@
     var inst = new mdui.Select('#vm_size');
 
     document.addEventListener('DOMContentLoaded', function () {
-        const fields = ['socks5_port', 'socks5_address', 'socks5_user', 'socks5_passwd'];
+        const fields = ['proxy_protocol', 'socks5_port', 'socks5_address', 'socks5_user', 'socks5_passwd'];
 
         fields.forEach(function (field) {
             const value = localStorage.getItem(field);
@@ -326,6 +335,7 @@
         var mode = $('#proxy_mode').val() || 'none';
         var data = extra || {};
         data.proxy_mode = mode;
+        data.proxy_protocol = $('#proxy_protocol').val() || 'socks5';
         data.proxy_id = mode.indexOf('pool:') === 0 ? mode.replace('pool:', '') : 0;
         return data;
     }
@@ -342,6 +352,7 @@
     }
 
     function fillProxyFields(option) {
+        $('#proxy_protocol').val(option.attr('data-protocol') || 'socks5');
         $('#socks5_address').val(option.attr('data-address') || '');
         $('#socks5_port').val(option.attr('data-port') || '');
         $('#socks5_user').val(option.attr('data-user') || '');
@@ -372,6 +383,7 @@
         $('#socks5_switch').prop('checked', manual);
 
         if (mode === 'none') {
+            $('#proxy_protocol').val('socks5');
             $('#socks5_address, #socks5_port, #socks5_user, #socks5_passwd').val('');
         } else if (!manual) {
             var option = getPoolOptionForMode(mode);
@@ -383,6 +395,7 @@
         }
 
         $('#socks5_address, #socks5_port, #socks5_user, #socks5_passwd').prop('readonly', !manual);
+        $('#proxy_protocol').prop('disabled', !manual);
     }
 
     function escapeHtml(text) {
@@ -398,7 +411,8 @@
         if (mode === 'manual') {
             var address = $('#socks5_address').val();
             var port = $('#socks5_port').val();
-            return address && port ? 'Manual proxy: ' + address + ':' + port : 'Manual proxy (missing address)';
+            var protocol = ($('#proxy_protocol').val() || 'socks5').toUpperCase();
+            return address && port ? 'Manual proxy [' + protocol + ']: ' + address + ':' + port : 'Manual proxy (missing address)';
         }
 
         var option = getPoolOptionForMode(mode);
@@ -444,6 +458,7 @@
             timeout: '500',
         });
 
+        localStorage.setItem('proxy_protocol', $('#proxy_protocol').val());
         localStorage.setItem('socks5_port', $('#socks5_port').val());
         localStorage.setItem('socks5_address', $('#socks5_address').val());
         localStorage.setItem('socks5_user', $('#socks5_user').val());

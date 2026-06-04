@@ -4,7 +4,7 @@
     <div class="az-page-head">
         <div>
             <h1 class="az-page-title">代理管理</h1>
-            <p class="az-page-subtitle">绑定到个人账号的 SOCKS5 代理，创建云主机时会自动读取默认代理。</p>
+            <p class="az-page-subtitle">绑定到个人账号的 SOCKS5 / HTTP 代理，创建云主机时可直接选择代理池。</p>
         </div>
     </div>
 
@@ -18,7 +18,16 @@
                     <input class="mdui-textfield-input" id="proxy_name">
                 </div>
             </div>
-            <div class="mdui-col-sm-12 mdui-col-md-6">
+            <div class="mdui-col-sm-12 mdui-col-md-4">
+                <div class="mdui-m-t-2" style="display:flex;align-items:center;gap:12px;min-height:56px;">
+                    <span style="white-space:nowrap;">协议：</span>
+                    <select id="proxy_protocol" class="mdui-select" mdui-select>
+                        <option value="socks5">SOCKS5</option>
+                        <option value="http">HTTP</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4">
                 <div class="mdui-textfield mdui-textfield-floating-label">
                     <i class="mdui-icon material-icons">dns</i>
                     <label class="mdui-textfield-label">地址</label>
@@ -72,6 +81,7 @@
                     <th>操作</th>
                     <th>#</th>
                     <th>名称</th>
+                    <th>协议</th>
                     <th>地址</th>
                     <th>状态</th>
                     <th>默认</th>
@@ -80,7 +90,7 @@
             </thead>
             <tbody>
                 {volist name="proxies" id="proxy"}
-                <tr data-id="{$proxy.id}" data-name="{$proxy.name}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-username="{$proxy.username}" data-password="{$proxy.password}" data-enabled="{$proxy.enabled}" data-default="{$proxy.is_default}">
+                <tr data-id="{$proxy.id}" data-name="{$proxy.name}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-username="{$proxy.username}" data-password="{$proxy.password}" data-enabled="{$proxy.enabled}" data-default="{$proxy.is_default}">
                     <td>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-blue-grey" onclick="editProxy(this)">编辑</button>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-indigo" onclick="testProxy({$proxy.id})">测试</button>
@@ -88,6 +98,7 @@
                     </td>
                     <td>{$total--}</td>
                     <td>{$proxy.name}</td>
+                    <td>{:strtoupper($proxy.protocol)}</td>
                     <td>{$proxy.address}:{$proxy.port}</td>
                     <td>{if $proxy.enabled == 1}启用{else /}停用{/if}</td>
                     <td>{if $proxy.is_default == 1}是{else /}否{/if}</td>
@@ -101,9 +112,34 @@
 </body>
 
 <script>
+    function refreshProxyForm() {
+        document.querySelectorAll('.mdui-textfield').forEach(function (field) {
+            var input = field.querySelector('.mdui-textfield-input');
+            if (!input) {
+                return;
+            }
+
+            if (input.value !== '') {
+                field.classList.add('mdui-textfield-not-empty');
+            } else {
+                field.classList.remove('mdui-textfield-not-empty');
+            }
+        });
+
+        if (typeof mdui.updateTextFields === 'function') {
+            mdui.updateTextFields();
+        }
+        if (typeof mdui.mutation === 'function') {
+            mdui.mutation();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', refreshProxyForm);
+
     function formData() {
         return {
             name: $('#proxy_name').val(),
+            protocol: $('#proxy_protocol').val(),
             address: $('#proxy_address').val(),
             port: $('#proxy_port').val(),
             username: $('#proxy_username').val(),
@@ -116,12 +152,14 @@
     function resetForm() {
         $('#proxy_id').val('0');
         $('#proxy_name').val('');
+        $('#proxy_protocol').val('socks5');
         $('#proxy_address').val('');
         $('#proxy_port').val('');
         $('#proxy_username').val('');
         $('#proxy_password').val('');
         $('#proxy_enabled').prop('checked', true);
         $('#proxy_default').prop('checked', true);
+        refreshProxyForm();
     }
 
     $('#reset_proxy').on('click', resetForm);
@@ -146,12 +184,14 @@
         var row = $(that).closest('tr');
         $('#proxy_id').val(row.data('id'));
         $('#proxy_name').val(row.data('name'));
+        $('#proxy_protocol').val(row.data('protocol') || 'socks5');
         $('#proxy_address').val(row.data('address'));
         $('#proxy_port').val(row.data('port'));
         $('#proxy_username').val(row.data('username'));
         $('#proxy_password').val(row.data('password'));
         $('#proxy_enabled').prop('checked', row.data('enabled') == 1);
         $('#proxy_default').prop('checked', row.data('default') == 1);
+        refreshProxyForm();
     }
 
     function testProxy(id) {
