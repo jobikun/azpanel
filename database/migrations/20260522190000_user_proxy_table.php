@@ -7,6 +7,10 @@ class UserProxyTable extends Migrator
 {
     public function change()
     {
+        if ($this->hasTable('user_proxy')) {
+            return;
+        }
+
         $table = $this->table('user_proxy');
         $table->addColumn('user_id', 'integer', ['comment' => 'Owner user id'])
             ->addColumn('name', 'string', ['limit' => 128, 'comment' => 'Proxy name'])
