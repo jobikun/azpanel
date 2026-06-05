@@ -46,6 +46,7 @@ Route::put('/user/profile/notify',                'UserDashboard/saveNotify');
 Route::put('/user/profile/passwd',                'UserDashboard/savePasswd');
 Route::put('/user/profile/refresh',               'UserDashboard/saveRefresh');
 Route::put('/user/profile/personalise',           'UserDashboard/savePersonalise');
+Route::post('/user/proxy/api/test',               'UserProxy/testApi');
 Route::resource('/user/proxy',                    'UserProxy');
 
 // 关于项目

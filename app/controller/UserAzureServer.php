@@ -87,6 +87,12 @@ class UserAzureServer extends UserBase
 
         $user = User::find(session('user_id'));
         $personalise = json_decode($user->personalise, true);
+        if (!is_array($personalise)) {
+            $personalise = json_decode(AzureList::defaultPersonalise(), true);
+        }
+        if (($personalise['vm_size'] ?? '') === '' || ($personalise['vm_size'] ?? '') === 'Standard_B2s') {
+            $personalise['vm_size'] = 'Standard_D2s_v3';
+        }
 
         View::assign([
             'ssh_key' => $ssh_key,
@@ -1281,7 +1287,7 @@ class UserAzureServer extends UserBase
                     $size = [
                         'name' => $sku_name,
                         'size_name' => $sku_name . ' => ' . $cpu . 'C_' . $memory . 'GB',
-                        'order' => self::commonSizeOrder((float) $cpu, (float) $memory),
+                        'order' => $sku_name === 'Standard_D2s_v3' ? -1 : self::commonSizeOrder((float) $cpu, (float) $memory),
                     ];
                     array_push($set, $size);
                 }
@@ -1367,6 +1373,10 @@ class UserAzureServer extends UserBase
     private static function isCommonAzureSize(array $sku): bool
     {
         $name = $sku['name'] ?? '';
+        if ($name === 'Standard_D2s_v3') {
+            return true;
+        }
+
         if (!preg_match('/^Standard_B/i', $name)) {
             return false;
         }

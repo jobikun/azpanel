@@ -198,7 +198,7 @@
                                             <option value="none">不使用代理</option>
                                             <option value="default">使用默认代理池</option>
                                             {volist name="proxies" id="proxy"}
-                                            <option value="pool:{$proxy.id}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-user="{$proxy.username}" data-passwd="{$proxy.password}" data-default="{$proxy.is_default}">{$proxy.name} - [{:strtoupper($proxy.protocol)}] {$proxy.address}:{$proxy.port}{if $proxy.is_default == 1}（默认）{/if}</option>
+                                            <option value="pool:{$proxy.id}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-user="{$proxy.username}" data-passwd="{$proxy.password}" data-default="{$proxy.is_default}">{$proxy.name} - [{:strtoupper($proxy.protocol)}{if $proxy.source_type == 'api'} API{/if}] {if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}{if $proxy.is_default == 1}（默认）{/if}</option>
                                             {/volist}
                                             <option value="manual">手动填写下方代理</option>
                                         </select>

@@ -11,11 +11,20 @@
     <div class="mdui-card mdui-m-t-2" style="overflow: visible">
         <div class="mdui-card-content mdui-container">
             <input type="hidden" id="proxy_id" value="0">
-            <div class="mdui-col-sm-12 mdui-col-md-6">
+            <div class="mdui-col-sm-12 mdui-col-md-4">
                 <div class="mdui-textfield mdui-textfield-floating-label">
                     <i class="mdui-icon material-icons">bookmark</i>
                     <label class="mdui-textfield-label">名称</label>
                     <input class="mdui-textfield-input" id="proxy_name">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4">
+                <div class="mdui-m-t-2" style="display:flex;align-items:center;gap:12px;min-height:56px;">
+                    <span style="white-space:nowrap;">来源：</span>
+                    <select id="proxy_source_type" class="mdui-select" mdui-select>
+                        <option value="manual">手动代理</option>
+                        <option value="api">第三方 API</option>
+                    </select>
                 </div>
             </div>
             <div class="mdui-col-sm-12 mdui-col-md-4">
@@ -27,28 +36,37 @@
                     </select>
                 </div>
             </div>
-            <div class="mdui-col-sm-12 mdui-col-md-4">
+            <div id="proxy_api_box" class="mdui-col-sm-12" style="display:none;">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">link</i>
+                    <label class="mdui-textfield-label">API URL（例如 9proxy 提取链接）</label>
+                    <input class="mdui-textfield-input" id="proxy_api_url">
+                </div>
+                <button id="test_proxy_api" class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">测试 API</button>
+                <span class="mdui-text-color-grey-600 mdui-m-l-1">支持 JSON data/list/proxies/result 和文本代理列表。</span>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4 manual-proxy-field">
                 <div class="mdui-textfield mdui-textfield-floating-label">
                     <i class="mdui-icon material-icons">dns</i>
                     <label class="mdui-textfield-label">地址</label>
                     <input class="mdui-textfield-input" id="proxy_address">
                 </div>
             </div>
-            <div class="mdui-col-sm-12 mdui-col-md-4">
+            <div class="mdui-col-sm-12 mdui-col-md-4 manual-proxy-field">
                 <div class="mdui-textfield mdui-textfield-floating-label">
                     <i class="mdui-icon material-icons">settings_input_component</i>
                     <label class="mdui-textfield-label">端口</label>
                     <input class="mdui-textfield-input" type="number" id="proxy_port" min="1" max="65535">
                 </div>
             </div>
-            <div class="mdui-col-sm-12 mdui-col-md-4">
+            <div class="mdui-col-sm-12 mdui-col-md-4 manual-proxy-field">
                 <div class="mdui-textfield mdui-textfield-floating-label">
                     <i class="mdui-icon material-icons">person</i>
                     <label class="mdui-textfield-label">用户名</label>
                     <input class="mdui-textfield-input" id="proxy_username">
                 </div>
             </div>
-            <div class="mdui-col-sm-12 mdui-col-md-4">
+            <div class="mdui-col-sm-12 mdui-col-md-4 manual-proxy-field">
                 <div class="mdui-textfield mdui-textfield-floating-label">
                     <i class="mdui-icon material-icons">lock</i>
                     <label class="mdui-textfield-label">密码</label>
@@ -81,6 +99,7 @@
                     <th>操作</th>
                     <th>#</th>
                     <th>名称</th>
+                    <th>来源</th>
                     <th>协议</th>
                     <th>地址</th>
                     <th>状态</th>
@@ -90,7 +109,7 @@
             </thead>
             <tbody>
                 {volist name="proxies" id="proxy"}
-                <tr data-id="{$proxy.id}" data-name="{$proxy.name}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-username="{$proxy.username}" data-password="{$proxy.password}" data-enabled="{$proxy.enabled}" data-default="{$proxy.is_default}">
+                <tr data-id="{$proxy.id}" data-name="{$proxy.name}" data-source-type="{$proxy.source_type}" data-api-url="{:htmlspecialchars($proxy.api_url, ENT_QUOTES)}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-username="{$proxy.username}" data-password="{$proxy.password}" data-enabled="{$proxy.enabled}" data-default="{$proxy.is_default}">
                     <td>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-blue-grey" onclick="editProxy(this)">编辑</button>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-indigo" onclick="testProxy({$proxy.id})">测试</button>
@@ -98,8 +117,9 @@
                     </td>
                     <td>{$total--}</td>
                     <td>{$proxy.name}</td>
+                    <td>{if $proxy.source_type == 'api'}API{else /}手动{/if}</td>
                     <td>{:strtoupper($proxy.protocol)}</td>
-                    <td>{$proxy.address}:{$proxy.port}</td>
+                    <td>{if $proxy.source_type == 'api'}{:htmlspecialchars($proxy.api_url, ENT_QUOTES)}{else /}{$proxy.address}:{$proxy.port}{/if}</td>
                     <td>{if $proxy.enabled == 1}启用{else /}停用{/if}</td>
                     <td>{if $proxy.is_default == 1}是{else /}否{/if}</td>
                     <td>{:date('Y-m-d H:i:s', $proxy.created_at)}</td>
@@ -136,9 +156,20 @@
 
     document.addEventListener('DOMContentLoaded', refreshProxyForm);
 
+    function updateProxySourceFields() {
+        var isApi = $('#proxy_source_type').val() === 'api';
+        $('#proxy_api_box').toggle(isApi);
+        $('.manual-proxy-field').toggle(!isApi);
+        refreshProxyForm();
+    }
+
+    $('#proxy_source_type').on('change', updateProxySourceFields);
+
     function formData() {
         return {
             name: $('#proxy_name').val(),
+            source_type: $('#proxy_source_type').val(),
+            api_url: $('#proxy_api_url').val(),
             protocol: $('#proxy_protocol').val(),
             address: $('#proxy_address').val(),
             port: $('#proxy_port').val(),
@@ -152,6 +183,8 @@
     function resetForm() {
         $('#proxy_id').val('0');
         $('#proxy_name').val('');
+        $('#proxy_source_type').val('manual');
+        $('#proxy_api_url').val('');
         $('#proxy_protocol').val('socks5');
         $('#proxy_address').val('');
         $('#proxy_port').val('');
@@ -159,7 +192,7 @@
         $('#proxy_password').val('');
         $('#proxy_enabled').prop('checked', true);
         $('#proxy_default').prop('checked', true);
-        refreshProxyForm();
+        updateProxySourceFields();
     }
 
     $('#reset_proxy').on('click', resetForm);
@@ -184,6 +217,8 @@
         var row = $(that).closest('tr');
         $('#proxy_id').val(row.data('id'));
         $('#proxy_name').val(row.data('name'));
+        $('#proxy_source_type').val(row.data('source-type') || 'manual');
+        $('#proxy_api_url').val(row.data('api-url') || '');
         $('#proxy_protocol').val(row.data('protocol') || 'socks5');
         $('#proxy_address').val(row.data('address'));
         $('#proxy_port').val(row.data('port'));
@@ -191,8 +226,23 @@
         $('#proxy_password').val(row.data('password'));
         $('#proxy_enabled').prop('checked', row.data('enabled') == 1);
         $('#proxy_default').prop('checked', row.data('default') == 1);
-        refreshProxyForm();
+        updateProxySourceFields();
     }
+
+    $('#test_proxy_api').on('click', function () {
+        $.ajax({
+            method: 'POST',
+            url: '/user/proxy/api/test',
+            data: {
+                api_url: $('#proxy_api_url').val(),
+                protocol: $('#proxy_protocol').val(),
+            },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.msg, data.status ? 'API 可用' : 'API 不可用');
+            }
+        });
+    });
 
     function testProxy(id) {
         $.ajax({
@@ -221,6 +271,8 @@
             });
         });
     }
+
+    updateProxySourceFields();
 </script>
 {include file="../app/view/user/footer.html" /}
 

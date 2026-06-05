@@ -20,10 +20,17 @@ class ProxyController extends UserBase
         return 'socks5';
     }
 
+    public static function normalizeProxySourceType(string $source_type): string
+    {
+        return strtolower(trim($source_type)) === 'api' ? 'api' : 'manual';
+    }
+
     public static function normalizeProxyRecords($proxies)
     {
         foreach ($proxies as $proxy) {
             $proxy->protocol = self::normalizeProxyProtocol((string) ($proxy->protocol ?? 'socks5'));
+            $proxy->source_type = self::normalizeProxySourceType((string) ($proxy->source_type ?? 'manual'));
+            $proxy->api_url = (string) ($proxy->api_url ?? '');
         }
 
         return $proxies;
@@ -112,6 +119,21 @@ class ProxyController extends UserBase
 
     public static function createProxyUrlFromRecord(UserProxy $proxy): string
     {
+        if (self::normalizeProxySourceType((string) ($proxy->source_type ?? 'manual')) === 'api') {
+            $api_proxy = self::fetchProxyFromApi(
+                (string) ($proxy->api_url ?? ''),
+                (string) ($proxy->protocol ?? 'socks5')
+            );
+
+            return self::createProxyUrl(
+                $api_proxy['protocol'],
+                $api_proxy['address'],
+                (int) $api_proxy['port'],
+                $api_proxy['username'],
+                $api_proxy['password']
+            );
+        }
+
         return self::createProxyUrl(
             (string) ($proxy->protocol ?? 'socks5'),
             $proxy->address,
@@ -128,6 +150,11 @@ class ProxyController extends UserBase
         $port = (int) ($proxy->port ?? 0);
         $label = $name !== '' ? $name : ('#' . $proxy->id);
         $protocol = strtoupper(self::normalizeProxyProtocol((string) ($proxy->protocol ?? 'socks5')));
+        $source_type = self::normalizeProxySourceType((string) ($proxy->source_type ?? 'manual'));
+
+        if ($source_type === 'api') {
+            return $prefix . ': ' . $label . ' [' . $protocol . ' API]';
+        }
 
         return $prefix . ': ' . $label . ' [' . $protocol . '] (' . $address . ':' . $port . ')';
     }
@@ -247,6 +274,194 @@ class ProxyController extends UserBase
         }
 
         return new Client(array_replace_recursive(self::createGuzzleOptions($proxy_url), $options));
+    }
+
+    public static function fetchProxyFromApi(string $api_url, string $default_protocol = 'socks5'): array
+    {
+        $api_url = trim($api_url);
+        if (!filter_var($api_url, FILTER_VALIDATE_URL) || !preg_match('/^https?:\/\//i', $api_url)) {
+            throw new \InvalidArgumentException('代理 API URL 必须是 http 或 https 地址');
+        }
+
+        $client = new Client([
+            'timeout' => 15,
+            'connect_timeout' => 8,
+            'http_errors' => false,
+        ]);
+        $response = $client->request('GET', $api_url);
+        $status = (int) $response->getStatusCode();
+        $body = trim((string) $response->getBody());
+        if ($status < 200 || $status >= 300) {
+            throw new \RuntimeException('代理 API 请求失败，HTTP ' . $status);
+        }
+
+        $candidates = self::extractProxyCandidates($body);
+        foreach ($candidates as $candidate) {
+            $proxy = self::parseProxyEndpoint($candidate, $default_protocol);
+            if ($proxy !== null) {
+                return $proxy;
+            }
+        }
+
+        throw new \RuntimeException('代理 API 没有返回可解析的代理地址');
+    }
+
+    private static function extractProxyCandidates(string $body): array
+    {
+        $body = trim($body);
+        if ($body === '') {
+            return [];
+        }
+
+        $decoded = json_decode($body, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            if (is_array($decoded) && !empty($decoded['error'])) {
+                throw new \RuntimeException((string) ($decoded['message'] ?? '代理 API 返回错误'));
+            }
+
+            $items = self::collectProxyStrings($decoded);
+            if (!empty($items)) {
+                return $items;
+            }
+        }
+
+        return preg_split('/[\r\n,]+/', $body, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    }
+
+    private static function collectProxyStrings($value): array
+    {
+        $items = [];
+        if (is_string($value)) {
+            $items[] = $value;
+            return $items;
+        }
+
+        if (!is_array($value)) {
+            return $items;
+        }
+
+        $host = self::firstArrayValue($value, ['host', 'ip', 'address', 'server']);
+        $port = self::firstArrayValue($value, ['port']);
+        if ($host !== null && $port !== null) {
+            $user = self::firstArrayValue($value, ['username', 'user', 'login']);
+            $pass = self::firstArrayValue($value, ['password', 'pass', 'passwd']);
+            $protocol = self::firstArrayValue($value, ['protocol', 'scheme', 'type']);
+            $auth = $user !== null ? rawurlencode((string) $user) . ($pass !== null ? ':' . rawurlencode((string) $pass) : '') . '@' : '';
+            $scheme = $protocol !== null ? self::normalizeProxyProtocol((string) $protocol) . '://' : '';
+            $items[] = $scheme . $auth . $host . ':' . $port;
+        }
+
+        foreach ($value as $entry) {
+            $items = array_merge($items, self::collectProxyStrings($entry));
+        }
+
+        return $items;
+    }
+
+    private static function firstArrayValue(array $value, array $keys)
+    {
+        foreach ($keys as $key) {
+            if (isset($value[$key]) && $value[$key] !== '') {
+                return $value[$key];
+            }
+        }
+
+        return null;
+    }
+
+    private static function parseProxyEndpoint(string $raw, string $default_protocol): ?array
+    {
+        $raw = trim($raw, " \t\n\r\0\x0B\"'");
+        if ($raw === '') {
+            return null;
+        }
+
+        $protocol = self::normalizeProxyProtocol($default_protocol);
+        $username = '';
+        $password = '';
+
+        if (preg_match('/^[a-z][a-z0-9+.-]*:\/\//i', $raw)) {
+            $url = parse_url($raw);
+            if (!is_array($url) || empty($url['host']) || empty($url['port'])) {
+                return null;
+            }
+
+            return [
+                'protocol' => self::normalizeProxyProtocol((string) ($url['scheme'] ?? $protocol)),
+                'address' => (string) $url['host'],
+                'port' => (int) $url['port'],
+                'username' => isset($url['user']) ? rawurldecode((string) $url['user']) : '',
+                'password' => isset($url['pass']) ? rawurldecode((string) $url['pass']) : '',
+            ];
+        }
+
+        if (strpos($raw, '@') !== false) {
+            [$auth, $host_port] = explode('@', $raw, 2);
+            [$username, $password] = array_pad(explode(':', $auth, 2), 2, '');
+            $parts = self::splitHostPort($host_port);
+            if ($parts === null) {
+                return null;
+            }
+
+            return [
+                'protocol' => $protocol,
+                'address' => $parts['address'],
+                'port' => $parts['port'],
+                'username' => rawurldecode($username),
+                'password' => rawurldecode($password),
+            ];
+        }
+
+        $parts = explode(':', $raw);
+        if (count($parts) >= 4 && is_numeric($parts[1])) {
+            return [
+                'protocol' => $protocol,
+                'address' => trim($parts[0]),
+                'port' => (int) $parts[1],
+                'username' => trim($parts[2]),
+                'password' => trim(implode(':', array_slice($parts, 3))),
+            ];
+        }
+
+        $host_port = self::splitHostPort($raw);
+        if ($host_port === null) {
+            return null;
+        }
+
+        return [
+            'protocol' => $protocol,
+            'address' => $host_port['address'],
+            'port' => $host_port['port'],
+            'username' => '',
+            'password' => '',
+        ];
+    }
+
+    private static function splitHostPort(string $value): ?array
+    {
+        $value = trim($value);
+        if (preg_match('/^\[([^\]]+)\]:(\d+)$/', $value, $matches)) {
+            return [
+                'address' => $matches[1],
+                'port' => (int) $matches[2],
+            ];
+        }
+
+        $pos = strrpos($value, ':');
+        if ($pos === false) {
+            return null;
+        }
+
+        $address = trim(substr($value, 0, $pos));
+        $port = (int) substr($value, $pos + 1);
+        if ($address === '' || $port < 1 || $port > 65535) {
+            return null;
+        }
+
+        return [
+            'address' => $address,
+            'port' => $port,
+        ];
     }
 
     public function test()

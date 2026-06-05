@@ -152,6 +152,12 @@ class AzureList
         // https://azureprice.net
 
         return [
+            'Standard_D2s_v3' => [
+                'cpu' => '2',
+                'memory' => '8',
+                'cost' => 0.0960 * 720,
+                'acc' => true,
+            ],
             'Standard_B1ls' => [
                 'cpu' => '1',
                 'memory' => '0.5',
@@ -282,6 +288,11 @@ class AzureList
     {
         $common = [];
         foreach (self::sizes() as $name => $size) {
+            if ($name === 'Standard_D2s_v3') {
+                $common[$name] = $size;
+                continue;
+            }
+
             if (!preg_match('/^Standard_B/i', $name)) {
                 continue;
             }
@@ -379,7 +390,7 @@ class AzureList
         $user = Str::lower($user);
 
         $personalise = [
-            'vm_size' => 'Standard_B2s',
+            'vm_size' => 'Standard_D2s_v3',
             'vm_image' => 'Debian_11',
             'vm_location' => 'eastasia',
             'vm_disk_size' => '32',
