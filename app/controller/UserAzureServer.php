@@ -199,7 +199,24 @@ class UserAzureServer extends UserBase
         $vm_script = $vm_script === '' ? null : base64_encode($vm_script);
 
         $images = AzureList::images();
-        if (Str::contains($vm_image, 'Win') && !Str::contains($images[$vm_image]['sku'], 'smalldisk') && $vm_disk_size < '127') {
+        if ($vm_image === '' || !isset($images[$vm_image])) {
+            $fallback_images = AzureList::commonImages();
+            if (empty($fallback_images)) {
+                $fallback_images = $images;
+            }
+
+            foreach ($fallback_images as $image_key => $image_value) {
+                $vm_image = (string) $image_key;
+                break;
+            }
+        }
+
+        if ($vm_image === '' || !isset($images[$vm_image])) {
+            return json(Tools::msg('0', '创建失败', '请选择有效的系统镜像'));
+        }
+
+        $image_info = $images[$vm_image];
+        if (Str::contains($vm_image, 'Win') && !Str::contains($image_info['sku'], 'smalldisk') && $vm_disk_size < '127') {
             return json(Tools::msg('0', '创建失败', '此 Windows 系统镜像要求硬盘大小不低于 127 GB'));
         }
 
@@ -300,7 +317,7 @@ class UserAzureServer extends UserBase
                         $single_size_core = (int) $capability['value'];
                     }
                 }
-                if ((Str::contains($images[$vm_image]['sku'], 'gen2') || Str::contains($images[$vm_image]['sku'], 'g2'))
+                if ((Str::contains($image_info['sku'], 'gen2') || Str::contains($image_info['sku'], 'g2'))
                     && !self::supportsHyperVGeneration($limit, 'V2')
                 ) {
                     UserTask::end($task_id, true, json_encode(

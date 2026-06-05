@@ -724,6 +724,11 @@
             return;
         }
 
+        if (!$('#vm_image').val()) {
+            mdui.alert('请先选择系统镜像', '创建失败');
+            return;
+        }
+
         var proxySummary = safeProxySummary();
         var confirmContent = '<div class="mdui-typo"><p>创建过程中请不要离开本页面</p><p><strong>Create proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>';
         mdui.confirm(confirmContent, '创建确认',
@@ -791,7 +796,10 @@
 
     $("#vm_size").prop('value', '{$personalise.vm_size}');
     inst.handleUpdate();
-    $("#vm_image").prop('value', '{$personalise.vm_image}');
+    var personaliseImage = '{$personalise.vm_image}';
+    if (personaliseImage && $('#vm_image option[value="' + personaliseImage + '"]').length > 0) {
+        $("#vm_image").prop('value', personaliseImage);
+    }
     $("#vm_location").prop('value', '{$personalise.vm_location}');
     $("#vm_disk_size").prop('value', '{$personalise.vm_disk_size}');
     $("#vm_default_identity").prop('value', '{$personalise.vm_default_identity}');
