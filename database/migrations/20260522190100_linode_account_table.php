@@ -6,6 +6,10 @@ class LinodeAccountTable extends Migrator
 {
     public function change()
     {
+        if ($this->hasTable('linode')) {
+            return;
+        }
+
         $table = $this->table('linode');
         $table->addColumn('user_id', 'integer', ['comment' => 'Owner user id'])
             ->addColumn('label', 'string', ['limit' => 128, 'comment' => 'Account label'])
