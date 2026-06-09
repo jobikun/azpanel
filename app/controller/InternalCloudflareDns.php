@@ -1,10 +1,11 @@
-<?php
+﻿<?php
 declare(strict_types=1);
 
 namespace app\controller;
 
 use app\BaseController;
 use app\model\Aws;
+use app\model\AwsServer;
 use app\model\Azure;
 use app\model\AzureServer;
 use app\model\Config;
@@ -48,6 +49,259 @@ class InternalCloudflareDns extends BaseController
         }
     }
 
+    public function resources()
+    {
+        $payload = $this->payload();
+        $auth_error = $this->authError($payload);
+        if ($auth_error !== null) {
+            return json([
+                'status' => 'failed',
+                'message' => $auth_error['message'],
+            ], $auth_error['code']);
+        }
+
+        try {
+            $provider = strtolower(trim((string) ($payload['provider'] ?? 'all')));
+            $resources = [];
+            if ($provider === 'all' || $provider === '' || $provider === 'azure') {
+                $resources = array_merge($resources, $this->listAzureResources());
+            }
+            if ($provider === 'all' || $provider === '' || $provider === 'aws') {
+                $resources = array_merge($resources, $this->listAwsResources($payload));
+            }
+            if (!in_array($provider, ['all', '', 'azure', 'aws'], true)) {
+                throw new \InvalidArgumentException('Unsupported provider: ' . $provider);
+            }
+
+            return json([
+                'status' => 'success',
+                'data' => [
+                    'resources' => $resources,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $code = $e instanceof \InvalidArgumentException ? 400 : 500;
+            return json([
+                'status' => 'failed',
+                'message' => $e->getMessage(),
+            ], $code);
+        }
+    }
+
+    private function listAzureResources(): array
+    {
+        $items = [];
+        $servers = AzureServer::order('id', 'desc')->select();
+        foreach ($servers as $server) {
+            $ip = trim((string) ($server->ip_address ?? ''));
+            $items[] = [
+                'key' => 'azure|' . (string) ($server->account_id ?? '') . '|' . (string) ($server->location ?? '') . '|' . (string) ($server->vm_id ?? '') . '|ipv4',
+                'provider' => 'azure',
+                'name' => (string) ($server->name ?? $server->vm_id ?? 'Azure VM'),
+                'resource_id' => (string) ($server->vm_id ?? ''),
+                'account_id' => (string) ($server->account_id ?? ''),
+                'region' => (string) ($server->location ?? ''),
+                'ip_version' => 'ipv4',
+                'current_ip' => $ip === 'null' ? '' : $ip,
+                'status' => (string) ($server->status ?? ''),
+                'remark' => (string) ($server->resource_group ?? ''),
+                'port' => 22,
+            ];
+        }
+        return $items;
+    }
+
+    private function listAwsResources(array $payload): array
+    {
+        $items = [];
+        $requested_account = (int) ($payload['account_id'] ?? 0);
+        $requested_region = trim((string) ($payload['region'] ?? $payload['location'] ?? ''));
+        $accounts = Aws::where('disable', 0)->order('id', 'desc')->select();
+        $regions = $requested_region !== '' ? [$requested_region => $requested_region] : AwsList::instanceRegion();
+        $proxy_url = $this->proxyUrl($payload);
+
+        foreach ($accounts as $account) {
+            if ($requested_account > 0 && (int) $account->id !== $requested_account) {
+                continue;
+            }
+            foreach ($regions as $region => $_label) {
+                try {
+                    $client = AwsApi::createAWSClient($region, $account->ak, $account->sk, $proxy_url !== null && $proxy_url !== '', 'ec2', $proxy_url);
+                    $result = $client->describeInstances();
+                } catch (\Throwable $e) {
+                    continue;
+                }
+
+                foreach (($result['Reservations'] ?? []) as $reservation) {
+                    foreach (($reservation['Instances'] ?? []) as $instance) {
+                        $state = (string) ($instance['State']['Name'] ?? 'unknown');
+                        if ($state === 'terminated' || $state === 'shutting-down') {
+                            continue;
+                        }
+                        $instance_id = (string) ($instance['InstanceId'] ?? '');
+                        if ($instance_id === '') {
+                            continue;
+                        }
+                        $name = $this->awsInstanceName($instance, $instance_id);
+                        $public_ipv4 = $this->awsInstancePublicIpv4($instance);
+                        if ($public_ipv4 !== '') {
+                            $item = [
+                                'key' => 'aws|' . (string) $account->id . '|' . $region . '|' . $instance_id . '|ipv4',
+                                'provider' => 'aws',
+                                'name' => $name,
+                                'resource_id' => $instance_id,
+                                'account_id' => (string) $account->id,
+                                'region' => $region,
+                                'ip_version' => 'ipv4',
+                                'current_ip' => $public_ipv4,
+                                'status' => $state,
+                                'remark' => (string) ($instance['InstanceType'] ?? ''),
+                                'port' => 22,
+                                'cached' => false,
+                            ];
+                            $this->persistAwsResource($item);
+                            $items[$item['key']] = $item;
+                        }
+                        foreach ($this->awsInstanceIpv6Addresses($instance) as $ipv6) {
+                            $item = [
+                                'key' => 'aws|' . (string) $account->id . '|' . $region . '|' . $instance_id . '|ipv6|' . $ipv6,
+                                'provider' => 'aws',
+                                'name' => $name . ' IPv6',
+                                'resource_id' => $instance_id,
+                                'account_id' => (string) $account->id,
+                                'region' => $region,
+                                'ip_version' => 'ipv6',
+                                'current_ip' => $ipv6,
+                                'status' => $state,
+                                'remark' => (string) ($instance['InstanceType'] ?? ''),
+                                'port' => 22,
+                                'cached' => false,
+                            ];
+                            $this->persistAwsResource($item);
+                            $items[$item['key']] = $item;
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach ($this->listCachedAwsResources($requested_account, $requested_region) as $cached_item) {
+            if (!isset($items[$cached_item['key']])) {
+                $items[$cached_item['key']] = $cached_item;
+            }
+        }
+
+        return array_values($items);
+    }
+
+    private function persistAwsResource(array $item): void
+    {
+        try {
+            $resource_key = (string) ($item['key'] ?? '');
+            if ($resource_key === '') {
+                return;
+            }
+            $now = time();
+            $server = AwsServer::where('resource_key', $resource_key)->find();
+            if ($server === null) {
+                $server = new AwsServer();
+                $server->resource_key = $resource_key;
+                $server->created_at = $now;
+            }
+            $server->account_id = (int) ($item['account_id'] ?? 0);
+            $server->region = (string) ($item['region'] ?? '');
+            $server->instance_id = (string) ($item['resource_id'] ?? '');
+            $server->name = (string) ($item['name'] ?? $server->instance_id);
+            $server->ip_version = (string) ($item['ip_version'] ?? 'ipv4');
+            $server->current_ip = (string) ($item['current_ip'] ?? '');
+            $server->status = (string) ($item['status'] ?? '');
+            $server->instance_type = (string) ($item['remark'] ?? '');
+            $server->remark = (string) ($item['remark'] ?? '');
+            $server->last_seen_at = $now;
+            $server->updated_at = $now;
+            $server->save();
+        } catch (\Throwable $e) {
+            // The endpoint must still work before the aws_server migration is applied.
+        }
+    }
+
+    private function listCachedAwsResources(int $requested_account = 0, string $requested_region = ''): array
+    {
+        try {
+            $query = AwsServer::order('last_seen_at', 'desc');
+            if ($requested_account > 0) {
+                $query = $query->where('account_id', $requested_account);
+            }
+            if ($requested_region !== '') {
+                $query = $query->where('region', $requested_region);
+            }
+            $servers = $query->select();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($servers as $server) {
+            $key = (string) ($server->resource_key ?? '');
+            if ($key === '') {
+                continue;
+            }
+            $items[] = [
+                'key' => $key,
+                'provider' => 'aws',
+                'name' => (string) ($server->name ?? $server->instance_id ?? 'AWS Instance'),
+                'resource_id' => (string) ($server->instance_id ?? ''),
+                'account_id' => (string) ($server->account_id ?? ''),
+                'region' => (string) ($server->region ?? ''),
+                'ip_version' => (string) ($server->ip_version ?? 'ipv4'),
+                'current_ip' => (string) ($server->current_ip ?? ''),
+                'status' => (string) ($server->status ?? ''),
+                'remark' => (string) ($server->instance_type ?? $server->remark ?? ''),
+                'port' => 22,
+                'cached' => true,
+            ];
+        }
+        return $items;
+    }
+
+    private function awsInstanceName($instance, string $fallback): string
+    {
+        foreach (($instance['Tags'] ?? []) as $tag) {
+            if (($tag['Key'] ?? '') === 'Name' && trim((string) ($tag['Value'] ?? '')) !== '') {
+                return trim((string) $tag['Value']);
+            }
+        }
+        return $fallback;
+    }
+
+    private function awsInstancePublicIpv4($instance): string
+    {
+        $ip = trim((string) ($instance['PublicIpAddress'] ?? ''));
+        if ($ip !== '') {
+            return $ip;
+        }
+        foreach (($instance['NetworkInterfaces'] ?? []) as $interface) {
+            $ip = trim((string) ($interface['Association']['PublicIp'] ?? ''));
+            if ($ip !== '') {
+                return $ip;
+            }
+        }
+        return '';
+    }
+
+    private function awsInstanceIpv6Addresses($instance): array
+    {
+        $items = [];
+        foreach (($instance['NetworkInterfaces'] ?? []) as $interface) {
+            foreach (($interface['Ipv6Addresses'] ?? []) as $address) {
+                $ip = trim((string) ($address['Ipv6Address'] ?? ''));
+                if ($ip !== '') {
+                    $items[$ip] = true;
+                }
+            }
+        }
+        return array_keys($items);
+    }
     private function payload(): array
     {
         $params = request()->param();
