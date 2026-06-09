@@ -10,5 +10,6 @@ return [
         'trafficControlStop' => 'app\command\trafficControlStop',
         'trafficControlStart' => 'app\command\trafficControlStart',
         'autoRefreshAccount' => 'app\command\autoRefreshAccount',
+        'syncAwsResources' => 'app\command\syncAwsResources',
     ]
 ];

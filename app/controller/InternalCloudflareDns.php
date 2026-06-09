@@ -62,15 +62,23 @@ class InternalCloudflareDns extends BaseController
 
         try {
             $provider = strtolower(trim((string) ($payload['provider'] ?? 'all')));
+            $refresh = $this->isTruthy($payload['refresh'] ?? null);
+            if (!in_array($provider, ['all', '', 'azure', 'aws'], true)) {
+                throw new \InvalidArgumentException('Unsupported provider: ' . $provider);
+            }
+
             $resources = [];
             if ($provider === 'all' || $provider === '' || $provider === 'azure') {
                 $resources = array_merge($resources, $this->listAzureResources());
             }
             if ($provider === 'all' || $provider === '' || $provider === 'aws') {
-                $resources = array_merge($resources, $this->listAwsResources($payload));
-            }
-            if (!in_array($provider, ['all', '', 'azure', 'aws'], true)) {
-                throw new \InvalidArgumentException('Unsupported provider: ' . $provider);
+                // 默认只读缓存表，秒回；仅当 refresh=1 时才实时拉取 AWS（慢，会走代理）
+                if ($refresh) {
+                    $this->syncAwsResourceCache($payload);
+                }
+                $requested_account = (int) ($payload['account_id'] ?? 0);
+                $requested_region = trim((string) ($payload['region'] ?? $payload['location'] ?? ''));
+                $resources = array_merge($resources, $this->listCachedAwsResources($requested_account, $requested_region));
             }
 
             return json([
@@ -111,14 +119,20 @@ class InternalCloudflareDns extends BaseController
         return $items;
     }
 
-    private function listAwsResources(array $payload): array
+    /**
+     * 实时拉取 AWS 实例并写入 aws_server 缓存表。
+     * 慢操作（遍历账户×区域，可能走代理），由 refresh 参数或定时命令触发，不在普通列表请求里执行。
+     *
+     * @return int 本次同步到的实例条目数
+     */
+    public static function syncAwsResourceCache(array $payload = []): int
     {
-        $items = [];
         $requested_account = (int) ($payload['account_id'] ?? 0);
         $requested_region = trim((string) ($payload['region'] ?? $payload['location'] ?? ''));
         $accounts = Aws::where('disable', 0)->order('id', 'desc')->select();
         $regions = $requested_region !== '' ? [$requested_region => $requested_region] : AwsList::instanceRegion();
-        $proxy_url = $this->proxyUrl($payload);
+        $proxy_url = self::proxyUrl($payload);
+        $synced = 0;
 
         foreach ($accounts as $account) {
             if ($requested_account > 0 && (int) $account->id !== $requested_account) {
@@ -142,12 +156,11 @@ class InternalCloudflareDns extends BaseController
                         if ($instance_id === '') {
                             continue;
                         }
-                        $name = $this->awsInstanceName($instance, $instance_id);
-                        $public_ipv4 = $this->awsInstancePublicIpv4($instance);
+                        $name = self::awsInstanceName($instance, $instance_id);
+                        $public_ipv4 = self::awsInstancePublicIpv4($instance);
                         if ($public_ipv4 !== '') {
-                            $item = [
+                            self::persistAwsResource([
                                 'key' => 'aws|' . (string) $account->id . '|' . $region . '|' . $instance_id . '|ipv4',
-                                'provider' => 'aws',
                                 'name' => $name,
                                 'resource_id' => $instance_id,
                                 'account_id' => (string) $account->id,
@@ -156,16 +169,12 @@ class InternalCloudflareDns extends BaseController
                                 'current_ip' => $public_ipv4,
                                 'status' => $state,
                                 'remark' => (string) ($instance['InstanceType'] ?? ''),
-                                'port' => 22,
-                                'cached' => false,
-                            ];
-                            $this->persistAwsResource($item);
-                            $items[$item['key']] = $item;
+                            ]);
+                            $synced++;
                         }
-                        foreach ($this->awsInstanceIpv6Addresses($instance) as $ipv6) {
-                            $item = [
+                        foreach (self::awsInstanceIpv6Addresses($instance) as $ipv6) {
+                            self::persistAwsResource([
                                 'key' => 'aws|' . (string) $account->id . '|' . $region . '|' . $instance_id . '|ipv6|' . $ipv6,
-                                'provider' => 'aws',
                                 'name' => $name . ' IPv6',
                                 'resource_id' => $instance_id,
                                 'account_id' => (string) $account->id,
@@ -174,27 +183,18 @@ class InternalCloudflareDns extends BaseController
                                 'current_ip' => $ipv6,
                                 'status' => $state,
                                 'remark' => (string) ($instance['InstanceType'] ?? ''),
-                                'port' => 22,
-                                'cached' => false,
-                            ];
-                            $this->persistAwsResource($item);
-                            $items[$item['key']] = $item;
+                            ]);
+                            $synced++;
                         }
                     }
                 }
             }
         }
 
-        foreach ($this->listCachedAwsResources($requested_account, $requested_region) as $cached_item) {
-            if (!isset($items[$cached_item['key']])) {
-                $items[$cached_item['key']] = $cached_item;
-            }
-        }
-
-        return array_values($items);
+        return $synced;
     }
 
-    private function persistAwsResource(array $item): void
+    private static function persistAwsResource(array $item): void
     {
         try {
             $resource_key = (string) ($item['key'] ?? '');
@@ -264,7 +264,7 @@ class InternalCloudflareDns extends BaseController
         return $items;
     }
 
-    private function awsInstanceName($instance, string $fallback): string
+    private static function awsInstanceName($instance, string $fallback): string
     {
         foreach (($instance['Tags'] ?? []) as $tag) {
             if (($tag['Key'] ?? '') === 'Name' && trim((string) ($tag['Value'] ?? '')) !== '') {
@@ -274,7 +274,7 @@ class InternalCloudflareDns extends BaseController
         return $fallback;
     }
 
-    private function awsInstancePublicIpv4($instance): string
+    private static function awsInstancePublicIpv4($instance): string
     {
         $ip = trim((string) ($instance['PublicIpAddress'] ?? ''));
         if ($ip !== '') {
@@ -289,7 +289,7 @@ class InternalCloudflareDns extends BaseController
         return '';
     }
 
-    private function awsInstanceIpv6Addresses($instance): array
+    private static function awsInstanceIpv6Addresses($instance): array
     {
         $items = [];
         foreach (($instance['NetworkInterfaces'] ?? []) as $interface) {
@@ -409,7 +409,7 @@ class InternalCloudflareDns extends BaseController
         }
 
         $old_ip = (string) ($server->ip_address ?? '');
-        $proxy_url = $this->proxyUrl($payload);
+        $proxy_url = self::proxyUrl($payload);
         $client = ProxyController::createGuzzleClient($proxy_url, [], false);
 
         $sub_info = AzureApi::getAzureSubscription($server->account_id, $client);
@@ -513,7 +513,7 @@ class InternalCloudflareDns extends BaseController
             throw new \RuntimeException('AWS account not found: ' . $account_id);
         }
 
-        $proxy_url = $this->proxyUrl($payload);
+        $proxy_url = self::proxyUrl($payload);
         $client = AwsApi::createAWSClient($region, $account->ak, $account->sk, $proxy_url !== null && $proxy_url !== '', 'ec2', $proxy_url);
 
         if ($ip_version === 'ipv6') {
@@ -620,7 +620,7 @@ class InternalCloudflareDns extends BaseController
         ];
     }
 
-    private function proxyUrl(array $payload): ?string
+    private static function proxyUrl(array $payload): ?string
     {
         $proxy_url = trim((string) ($payload['proxy_url'] ?? ''));
         if ($proxy_url !== '') {
@@ -633,5 +633,13 @@ class InternalCloudflareDns extends BaseController
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    private function isTruthy($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
     }
 }
