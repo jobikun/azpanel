@@ -285,8 +285,16 @@ class UserAwsServer extends UserBase
     {
         $account = Aws::where('user_id', session('user_id'))->find($id);
         try {
-            $client = $this->getAWSClient(input('location/s'), $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
-            return json($client->describeInstances()->toArray());
+            $location = input('location/s');
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $result = $client->describeInstances()->toArray();
+            // 加载到的实例顺手写入 aws_server 缓存，供 cloudflare_dns 拉取
+            try {
+                InternalCloudflareDns::cacheAwsInstances((int) $id, (string) $location, $result);
+            } catch (\Throwable $e) {
+                // 缓存失败不影响正常返回
+            }
+            return json($result);
         } catch (\Exception $e) {
             return json([
                 'ret' => 0,

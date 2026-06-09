@@ -146,52 +146,69 @@ class InternalCloudflareDns extends BaseController
                     continue;
                 }
 
-                foreach (($result['Reservations'] ?? []) as $reservation) {
-                    foreach (($reservation['Instances'] ?? []) as $instance) {
-                        $state = (string) ($instance['State']['Name'] ?? 'unknown');
-                        if ($state === 'terminated' || $state === 'shutting-down') {
-                            continue;
-                        }
-                        $instance_id = (string) ($instance['InstanceId'] ?? '');
-                        if ($instance_id === '') {
-                            continue;
-                        }
-                        $name = self::awsInstanceName($instance, $instance_id);
-                        $public_ipv4 = self::awsInstancePublicIpv4($instance);
-                        if ($public_ipv4 !== '') {
-                            self::persistAwsResource([
-                                'key' => 'aws|' . (string) $account->id . '|' . $region . '|' . $instance_id . '|ipv4',
-                                'name' => $name,
-                                'resource_id' => $instance_id,
-                                'account_id' => (string) $account->id,
-                                'region' => $region,
-                                'ip_version' => 'ipv4',
-                                'current_ip' => $public_ipv4,
-                                'status' => $state,
-                                'remark' => (string) ($instance['InstanceType'] ?? ''),
-                            ]);
-                            $synced++;
-                        }
-                        foreach (self::awsInstanceIpv6Addresses($instance) as $ipv6) {
-                            self::persistAwsResource([
-                                'key' => 'aws|' . (string) $account->id . '|' . $region . '|' . $instance_id . '|ipv6|' . $ipv6,
-                                'name' => $name . ' IPv6',
-                                'resource_id' => $instance_id,
-                                'account_id' => (string) $account->id,
-                                'region' => $region,
-                                'ip_version' => 'ipv6',
-                                'current_ip' => $ipv6,
-                                'status' => $state,
-                                'remark' => (string) ($instance['InstanceType'] ?? ''),
-                            ]);
-                            $synced++;
-                        }
-                    }
-                }
+                $synced += self::cacheAwsInstances((int) $account->id, $region, $result);
             }
         }
 
         return $synced;
+    }
+
+    /**
+     * 把一次 describeInstances 的结果写入 aws_server 缓存表。
+     * 供定时同步和面板正常浏览（UserAwsServer::read）共用——加载到的实例顺手存下来。
+     *
+     * @return int 写入的实例条目数
+     */
+    public static function cacheAwsInstances(int $account_id, string $region, array $describe_result): int
+    {
+        $region = trim($region);
+        if ($account_id <= 0 || $region === '') {
+            return 0;
+        }
+        $cached = 0;
+        foreach (($describe_result['Reservations'] ?? []) as $reservation) {
+            foreach (($reservation['Instances'] ?? []) as $instance) {
+                $state = (string) ($instance['State']['Name'] ?? 'unknown');
+                if ($state === 'terminated' || $state === 'shutting-down') {
+                    continue;
+                }
+                $instance_id = (string) ($instance['InstanceId'] ?? '');
+                if ($instance_id === '') {
+                    continue;
+                }
+                $name = self::awsInstanceName($instance, $instance_id);
+                $public_ipv4 = self::awsInstancePublicIpv4($instance);
+                if ($public_ipv4 !== '') {
+                    self::persistAwsResource([
+                        'key' => 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv4',
+                        'name' => $name,
+                        'resource_id' => $instance_id,
+                        'account_id' => (string) $account_id,
+                        'region' => $region,
+                        'ip_version' => 'ipv4',
+                        'current_ip' => $public_ipv4,
+                        'status' => $state,
+                        'remark' => (string) ($instance['InstanceType'] ?? ''),
+                    ]);
+                    $cached++;
+                }
+                foreach (self::awsInstanceIpv6Addresses($instance) as $ipv6) {
+                    self::persistAwsResource([
+                        'key' => 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv6|' . $ipv6,
+                        'name' => $name . ' IPv6',
+                        'resource_id' => $instance_id,
+                        'account_id' => (string) $account_id,
+                        'region' => $region,
+                        'ip_version' => 'ipv6',
+                        'current_ip' => $ipv6,
+                        'status' => $state,
+                        'remark' => (string) ($instance['InstanceType'] ?? ''),
+                    ]);
+                    $cached++;
+                }
+            }
+        }
+        return $cached;
     }
 
     private static function persistAwsResource(array $item): void
