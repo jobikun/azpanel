@@ -119,6 +119,27 @@ class UserAzureServer extends UserBase
         return json(Tools::msg('1', '保存结果', '保存成功'));
     }
 
+    /**
+     * 把 nyanpass 被控端的非交互安装命令拼进开机脚本（cloud-init customData）。
+     * 三个交互项用 printf 预填：节点名取主机名、环境优化 y、工具安装 y。
+     */
+    private static function buildNyanpassScript(string $user_script, string $token, string $url): string
+    {
+        // 去掉用户脚本可能自带的 shebang，避免与下方重复
+        $user_body = preg_replace('/^#!.*\R/', '', $user_script);
+
+        $script = "#!/bin/bash\n"
+            . "# === nyanpass 被控端自动安装 (azpanel) ===\n"
+            . "curl -fLSs https://dl.nyafw.com/download/nyanpass-install.sh -o /tmp/nyanpass-install.sh\n"
+            . "printf '%s\\ny\\ny\\n' \"\$(hostname)\" | bash /tmp/nyanpass-install.sh rel_nodeclient \"-t " . $token . " -u " . $url . "\"\n";
+
+        if (trim((string) $user_body) !== '') {
+            $script .= "# === 用户自定义脚本 ===\n" . $user_body . "\n";
+        }
+
+        return $script;
+    }
+
     public function save()
     {
         $vm_name = input('vm_name/s');
@@ -137,6 +158,9 @@ class UserAzureServer extends UserBase
         $vm_traffic_rule = (int) input('vm_traffic_rule/s');
         $create_check = (int) input('create_check/s');
         $create_ipv6 = (bool) input('create_ipv6/s');
+        $nyanpass_enable = (bool) input('nyanpass_enable/s');
+        $nyanpass_token = trim((string) input('nyanpass_token/s'));
+        $nyanpass_url = trim((string) input('nyanpass_url/s'));
 
         // 创建账户检查
         if ($vm_account === '') {
@@ -199,6 +223,17 @@ class UserAzureServer extends UserBase
             if ($remark === '') {
                 return json(Tools::msg('0', '创建失败', '虚拟机备注不能为空'));
             }
+        }
+
+        // 可选：开机自动安装 nyanpass 被控端，拼进自定义脚本
+        if ($nyanpass_enable) {
+            if (!preg_match('/^[0-9a-fA-F-]{8,64}$/', $nyanpass_token)) {
+                return json(Tools::msg('0', '创建失败', 'nyanpass 通信密钥(token)格式不正确'));
+            }
+            if (!preg_match('#^https?://[A-Za-z0-9.\-_/:]+$#', $nyanpass_url)) {
+                return json(Tools::msg('0', '创建失败', 'nyanpass 面板地址(url)格式不正确'));
+            }
+            $vm_script = self::buildNyanpassScript((string) $vm_script, $nyanpass_token, $nyanpass_url);
         }
 
         // 其他项目检查

@@ -188,7 +188,7 @@ class InternalCloudflareDns extends BaseController
                         'ip_version' => 'ipv4',
                         'current_ip' => $public_ipv4,
                         'status' => $state,
-                        'remark' => (string) ($instance['InstanceType'] ?? ''),
+                        'instance_type' => (string) ($instance['InstanceType'] ?? ''),
                     ]);
                     $cached++;
                 }
@@ -202,12 +202,81 @@ class InternalCloudflareDns extends BaseController
                         'ip_version' => 'ipv6',
                         'current_ip' => $ipv6,
                         'status' => $state,
-                        'remark' => (string) ($instance['InstanceType'] ?? ''),
+                        'instance_type' => (string) ($instance['InstanceType'] ?? ''),
                     ]);
                     $cached++;
                 }
             }
         }
+        return $cached;
+    }
+
+    public static function cacheCreatedAwsInstance(int $account_id, string $region, array $instance): int
+    {
+        $region = trim($region);
+        $instance_id = trim((string) ($instance['instance_id'] ?? ''));
+        if ($account_id <= 0 || $region === '' || $instance_id === '') {
+            return 0;
+        }
+
+        $name = trim((string) ($instance['name'] ?? ''));
+        if ($name === '') {
+            $name = $instance_id;
+        }
+        $status = trim((string) ($instance['status'] ?? 'running'));
+        $instance_type = (string) ($instance['instance_type'] ?? '');
+        $remark = (string) ($instance['remark'] ?? '');
+        $cached = 0;
+
+        $public_ipv4 = trim((string) ($instance['public_ip'] ?? ''));
+        if ($public_ipv4 !== '') {
+            self::persistAwsResource([
+                'key' => 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv4',
+                'name' => $name,
+                'resource_id' => $instance_id,
+                'account_id' => (string) $account_id,
+                'region' => $region,
+                'ip_version' => 'ipv4',
+                'current_ip' => $public_ipv4,
+                'status' => $status,
+                'instance_type' => $instance_type,
+                'remark' => $remark,
+            ]);
+            $cached++;
+        }
+
+        $ipv6_addresses = [];
+        $ipv6_addr = trim((string) ($instance['ipv6_addr'] ?? ''));
+        if ($ipv6_addr !== '') {
+            $ipv6_addresses[$ipv6_addr] = true;
+        }
+        $extra_ipv6_addresses = $instance['ipv6_addresses'] ?? [];
+        if (!is_array($extra_ipv6_addresses)) {
+            $extra_ipv6_addresses = [$extra_ipv6_addresses];
+        }
+        foreach ($extra_ipv6_addresses as $ipv6) {
+            $ipv6 = trim((string) $ipv6);
+            if ($ipv6 !== '') {
+                $ipv6_addresses[$ipv6] = true;
+            }
+        }
+
+        foreach (array_keys($ipv6_addresses) as $ipv6) {
+            self::persistAwsResource([
+                'key' => 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv6|' . $ipv6,
+                'name' => $name . ' IPv6',
+                'resource_id' => $instance_id,
+                'account_id' => (string) $account_id,
+                'region' => $region,
+                'ip_version' => 'ipv6',
+                'current_ip' => $ipv6,
+                'status' => $status,
+                'instance_type' => $instance_type,
+                'remark' => $remark,
+            ]);
+            $cached++;
+        }
+
         return $cached;
     }
 
@@ -225,6 +294,7 @@ class InternalCloudflareDns extends BaseController
                 $server->resource_key = $resource_key;
                 $server->created_at = $now;
             }
+            $has_remark = array_key_exists('remark', $item);
             $server->account_id = (int) ($item['account_id'] ?? 0);
             $server->region = (string) ($item['region'] ?? '');
             $server->instance_id = (string) ($item['resource_id'] ?? '');
@@ -232,8 +302,10 @@ class InternalCloudflareDns extends BaseController
             $server->ip_version = (string) ($item['ip_version'] ?? 'ipv4');
             $server->current_ip = (string) ($item['current_ip'] ?? '');
             $server->status = (string) ($item['status'] ?? '');
-            $server->instance_type = (string) ($item['remark'] ?? '');
-            $server->remark = (string) ($item['remark'] ?? '');
+            $server->instance_type = (string) ($item['instance_type'] ?? $server->instance_type ?? '');
+            if ($has_remark) {
+                $server->remark = (string) ($item['remark'] ?? '');
+            }
             $server->last_seen_at = $now;
             $server->updated_at = $now;
             $server->save();
@@ -273,7 +345,7 @@ class InternalCloudflareDns extends BaseController
                 'ip_version' => (string) ($server->ip_version ?? 'ipv4'),
                 'current_ip' => (string) ($server->current_ip ?? ''),
                 'status' => (string) ($server->status ?? ''),
-                'remark' => (string) ($server->instance_type ?? $server->remark ?? ''),
+                'remark' => (string) ($server->remark ?? ''),
                 'port' => 22,
                 'cached' => true,
             ];

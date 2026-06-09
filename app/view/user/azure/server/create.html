@@ -76,6 +76,23 @@
                             * 默认脚本的运行身份是普通用户，部分命令需要加上 <code>sudo</code> 才能成功执行。
                             如想启用 <code>root</code> 账户登录，请参考 <a href="/user/docs" target="view_window">文档</a> 设置
                         </p>
+                        <div class="mdui-m-t-2">
+                            <label class="mdui-checkbox">
+                                <input type="checkbox" id="nyanpass_enable"/>
+                                <i class="mdui-checkbox-icon"></i> 开机自动安装 nyanpass 被控端
+                            </label>
+                        </div>
+                        <div id="nyanpass_options" style="display:none">
+                            <div class="mdui-textfield">
+                                <label class="mdui-textfield-label">nyanpass 面板地址（-u）</label>
+                                <input class="mdui-textfield-input" id="nyanpass_url" placeholder="https://ny.example.com"/>
+                            </div>
+                            <div class="mdui-textfield">
+                                <label class="mdui-textfield-label">通信密钥（-t）</label>
+                                <input class="mdui-textfield-input" id="nyanpass_token" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"/>
+                            </div>
+                            <p class="mdui-typo">* 勾选后新机器开机会自动安装并对接到该面板，节点名取主机名。地址与密钥会记住，下次免填。</p>
+                        </div>
                     </div>
                     <div class="mdui-col-sm-12 mdui-col-md-6">
                         <div class="mdui-m-t-2">
@@ -652,6 +669,17 @@
         }
     });
 
+    // nyanpass 被控端可选项：记住地址/密钥，勾选时展开
+    (function () {
+        var savedUrl = localStorage.getItem('nyanpass_url') || '';
+        var savedToken = localStorage.getItem('nyanpass_token') || '';
+        if (savedUrl) { $('#nyanpass_url').val(savedUrl); }
+        if (savedToken) { $('#nyanpass_token').val(savedToken); }
+        $('#nyanpass_enable').on('change', function () {
+            $('#nyanpass_options').toggle(this.checked);
+        });
+    })();
+
     $('#query_price').on('click', function () {
         mdui.snackbar({
             message: '查询价格中...',
@@ -729,6 +757,19 @@
             return;
         }
 
+        var nyanpassEnable = $('#nyanpass_enable').prop('checked');
+        var nyanpassUrl = $('#nyanpass_url').val().trim();
+        var nyanpassToken = $('#nyanpass_token').val().trim();
+        if (nyanpassEnable) {
+            if (!nyanpassUrl || !nyanpassToken) {
+                mdui.alert('已勾选安装 nyanpass，请填写面板地址和通信密钥', '创建失败');
+                return;
+            }
+            // 记住地址和密钥，下次免填
+            localStorage.setItem('nyanpass_url', nyanpassUrl);
+            localStorage.setItem('nyanpass_token', nyanpassToken);
+        }
+
         var proxySummary = safeProxySummary();
         var confirmContent = '<div class="mdui-typo"><p>创建过程中请不要离开本页面</p><p><strong>Create proxy: </strong>' + escapeHtml(proxySummary) + '</p></div>';
         mdui.confirm(confirmContent, '创建确认',
@@ -759,6 +800,9 @@
                         socks5_passwd: $('#socks5_passwd').val(),
                         socks5_address: $('#socks5_address').val(),
                         socks5_switch: $("#socks5_switch").prop("checked"),
+                        nyanpass_enable: nyanpassEnable ? 1 : 0,
+                        nyanpass_url: nyanpassUrl,
+                        nyanpass_token: nyanpassToken,
                         task_uuid: uuid,
                     }),
                     dataType: "json",

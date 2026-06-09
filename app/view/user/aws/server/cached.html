@@ -17,6 +17,7 @@
                 <tr>
                     <th>#</th>
                     <th>名称</th>
+                    <th>备注</th>
                     <th>账号</th>
                     <th>区域</th>
                     <th>实例 ID</th>
@@ -33,6 +34,7 @@
                 <tr>
                     <td>{$k}</td>
                     <td>{$server.name}</td>
+                    <td>{:htmlspecialchars($server['remark'], ENT_QUOTES)}</td>
                     <td>{$server.account_email}</td>
                     <td>{$server.region}</td>
                     <td>{$server.instance_id}</td>
@@ -42,6 +44,11 @@
                     <td>{$server.instance_type}</td>
                     <td>{$server.last_seen_at}</td>
                     <td>
+                        <button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-indigo"
+                            style="font-size:12px;min-height:28px;line-height:28px"
+                            data-key="{:htmlspecialchars($server['resource_key'], ENT_QUOTES)}"
+                            data-remark="{:htmlspecialchars($server['remark'], ENT_QUOTES)}"
+                            onclick="remarkAws(this)">修改备注</button>
                         {eq name="server.ip_version" value="ipv6"}
                         <button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey"
                             style="font-size:12px;min-height:28px;line-height:28px"
@@ -79,6 +86,33 @@
     }
     markColor();
 
+    function remarkAws(that) {
+        var key = $(that).attr('data-key');
+        var current = $(that).attr('data-remark') || '';
+        mdui.prompt('请输入新备注', '修改备注',
+            function (remark) {
+                $.ajax({
+                    method: 'POST',
+                    url: "/user/server/aws/remark",
+                    data: {
+                        resource_key: key,
+                        remark: remark
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        mdui.alert(data.content, data.title, function () { window.location.reload(); });
+                    }
+                });
+            },
+            function () { },
+            {
+                confirmText: "确定",
+                cancelText: "取消",
+                defaultValue: current
+            }
+        );
+    }
+
     function postAwsAddressAction(url, instanceId, accountId, location) {
         $.ajax({
             method: 'POST',
@@ -90,7 +124,7 @@
                 location: location,
             },
             success: function (data) {
-                mdui.alert(data.content, data.title, function () { location.reload(); });
+                mdui.alert(data.content, data.title, function () { window.location.reload(); });
             }
         });
     }

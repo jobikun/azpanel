@@ -83,6 +83,7 @@ Route::post('/user/aws/search',                   'UserAws/searchAccount');
 
 // Aws 服务器
 Route::get('/user/server/aws/cached',             'UserAwsServer/cached');
+Route::post('/user/server/aws/remark',            'UserAwsServer/remark');
 Route::resource('/user/server/aws',               'UserAwsServer');
 Route::post('/user/server/aws/addipv4',           'UserAwsServer/addIpv4');
 Route::post('/user/server/aws/addipv6',           'UserAwsServer/addIpv6');

@@ -52,6 +52,8 @@ class UserAwsServer extends UserBase
                         'current_ip' => (string) ($row->current_ip ?? ''),
                         'status' => (string) ($row->status ?? ''),
                         'instance_type' => (string) ($row->instance_type ?? ''),
+                        'remark' => (string) ($row->remark ?? ''),
+                        'resource_key' => (string) ($row->resource_key ?? ''),
                         'last_seen_at' => $row->last_seen_at ? date('Y-m-d H:i:s', (int) $row->last_seen_at) : '-',
                     ];
                 }
@@ -219,8 +221,8 @@ class UserAwsServer extends UserBase
         if ($vm_remark === '') {
             $vm_remark = $vm_name;
         }
-        $names = explode(',', $vm_name);
-        $remarks = explode(',', $vm_remark);
+        $names = array_map('trim', explode(',', $vm_name));
+        $remarks = array_map('trim', explode(',', $vm_remark));
         $vm_number = count($names);
         if (count($names) !== $vm_number || count($remarks) !== $vm_number || count($names) !== count($remarks)) {
             return json(Tools::msg('0', '创建失败', '请检查创建数量、备注和虚拟机名称是否正确分隔'));
@@ -277,8 +279,9 @@ class UserAwsServer extends UserBase
         $task_id = UserTask::create(session('user_id'), '创建AWS虚拟机', $params, $task_uuid);
         UserTask::update($task_id, 0, 'Proxy for this create: ' . $proxy_label);
         // 开始创建
-        foreach ($names as $vm_name) {
+        foreach ($names as $pointer => $vm_name) {
             $name = $vm_name . date('YmdHis', time());
+            $remark = (string) ($remarks[$pointer] ?? $vm_name);
             try {
                 $images = AwsList::instanceImage();
                 if (!isset($images[$vm_image])) {
@@ -298,11 +301,21 @@ class UserAwsServer extends UserBase
                 $client = AwsApi::createAWSClient($vm_location, $account->ak, $account->sk, $proxy_url !== null, 'ec2', $proxy_url);
                 if ($ipv6_network === 'true' && AwsApi::countRegionVpc($client, $vm_location) <= 4) {
                     UserTask::update($task_id, (++$progress / $steps), '正在创建具有 IPv6 的 EC2');
-                    AwsApi::createIpv6EC2($client, $controller_params);
+                    $create_result = AwsApi::createIpv6EC2($client, $controller_params);
                 } else {
                     UserTask::update($task_id, (++$progress / $steps), '正在创建 EC2');
-                    AwsApi::createOnlyIpv4EC2($client, $controller_params);
+                    $create_result = AwsApi::createOnlyIpv4EC2($client, $controller_params);
                 }
+                InternalCloudflareDns::cacheCreatedAwsInstance((int) $account->id, $vm_location, [
+                    'instance_id' => (string) ($create_result['instance_id'] ?? ''),
+                    'name' => $name,
+                    'public_ip' => (string) ($create_result['public_ip'] ?? ''),
+                    'ipv6_addr' => (string) ($create_result['ipv6_addr'] ?? ''),
+                    'status' => 'running',
+                    'instance_type' => (string) $controller_params['size'],
+                    'remark' => $remark,
+                ]);
+                UserTask::update($task_id, (++$progress / $steps), 'AWS instance cached');
                 //AwsApi::createOnlyIpv4EC2($client, $controller_params);
             } catch (\Exception $e) {
                 $error = $e->getLine() . ':' . $e->getMessage();
@@ -364,6 +377,37 @@ class UserAwsServer extends UserBase
     public function delete()
     {
         return false;
+    }
+
+    public function remark()
+    {
+        $resource_key = trim((string) input('resource_key/s', ''));
+        $remark = trim((string) input('remark/s', ''));
+        if ($resource_key === '') {
+            return json(Tools::msg('0', '修改失败', '缓存记录不存在'));
+        }
+        if ($remark === '') {
+            return json(Tools::msg('0', '修改失败', '备注不能为空'));
+        }
+
+        $account_ids = array_map(
+            'intval',
+            Aws::where('user_id', session('user_id'))->column('id')
+        );
+        $server = AwsServer::where('resource_key', $resource_key)->find();
+        if ($server === null || !in_array((int) $server->account_id, $account_ids, true)) {
+            return json(Tools::msg('0', '修改失败', '缓存记录不存在或无权修改'));
+        }
+
+        AwsServer::where('account_id', (int) $server->account_id)
+            ->where('region', (string) $server->region)
+            ->where('instance_id', (string) $server->instance_id)
+            ->update([
+                'remark' => $remark,
+                'updated_at' => time(),
+            ]);
+
+        return json(Tools::msg('1', '修改成功', '备注已更新'));
     }
 
     public function changeIp()
