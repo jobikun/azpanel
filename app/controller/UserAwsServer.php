@@ -7,6 +7,7 @@ use app\controller\AwsList;
 use app\controller\Tools;
 use app\controller\UserTask;
 use app\model\Aws;
+use app\model\AwsServer;
 use app\model\User;
 use app\model\UserProxy;
 use Aws\Ec2\Ec2Client;
@@ -27,6 +28,40 @@ class UserAwsServer extends UserBase
             'locations' => AwsList::instanceRegion(),
         ]);
         return View::fetch('../app/view/user/aws/server/index.html');
+    }
+
+    public function cached()
+    {
+        $emails = Aws::where('user_id', session('user_id'))->column('email', 'id');
+        $account_ids = array_keys($emails);
+
+        $servers = [];
+        if (!empty($account_ids)) {
+            try {
+                $rows = AwsServer::whereIn('account_id', $account_ids)
+                    ->order('last_seen_at', 'desc')
+                    ->select();
+                foreach ($rows as $row) {
+                    $servers[] = [
+                        'name' => (string) ($row->name ?? $row->instance_id ?? ''),
+                        'account_email' => (string) ($emails[(int) $row->account_id] ?? $row->account_id),
+                        'account_id' => (int) $row->account_id,
+                        'region' => (string) ($row->region ?? ''),
+                        'instance_id' => (string) ($row->instance_id ?? ''),
+                        'ip_version' => (string) ($row->ip_version ?? 'ipv4'),
+                        'current_ip' => (string) ($row->current_ip ?? ''),
+                        'status' => (string) ($row->status ?? ''),
+                        'instance_type' => (string) ($row->instance_type ?? ''),
+                        'last_seen_at' => $row->last_seen_at ? date('Y-m-d H:i:s', (int) $row->last_seen_at) : '-',
+                    ];
+                }
+            } catch (\Throwable $e) {
+                $servers = [];
+            }
+        }
+
+        View::assign('servers', $servers);
+        return View::fetch('../app/view/user/aws/server/cached.html');
     }
 
     public function create()

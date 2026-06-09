@@ -1,0 +1,121 @@
+{include file="../app/view/user/header.html" title="AWS 缓存虚拟机" /}
+
+<main class="az-main">
+    <div class="az-page-head">
+        <div>
+            <h1 class="az-page-title">AWS 缓存虚拟机</h1>
+            <p class="az-page-subtitle">展示已加载并缓存到本地的 EC2 实例（供 cloudflare_dns 拉取），无需实时调用 AWS。</p>
+        </div>
+        <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/server/aws">
+            <i class="mdui-icon material-icons">cloud_download</i>&nbsp;去实时列表加载
+        </a>
+    </div>
+
+    <div class="mdui-table-fluid-fixed">
+        <table id="list" class="mdui-table" style="border: none;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>名称</th>
+                    <th>账号</th>
+                    <th>区域</th>
+                    <th>实例 ID</th>
+                    <th>版本</th>
+                    <th>IP</th>
+                    <th>状态</th>
+                    <th>规格</th>
+                    <th>最近同步</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {volist name="servers" id="server" key="k"}
+                <tr>
+                    <td>{$k}</td>
+                    <td>{$server.name}</td>
+                    <td>{$server.account_email}</td>
+                    <td>{$server.region}</td>
+                    <td>{$server.instance_id}</td>
+                    <td>{$server.ip_version}</td>
+                    <td>{$server.current_ip}</td>
+                    <td>{$server.status}</td>
+                    <td>{$server.instance_type}</td>
+                    <td>{$server.last_seen_at}</td>
+                    <td>
+                        {eq name="server.ip_version" value="ipv6"}
+                        <button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey"
+                            style="font-size:12px;min-height:28px;line-height:28px"
+                            onclick="changeAwsIpv6('{$server.instance_id}', {$server.account_id}, '{$server.region}')">更换 IPv6</button>
+                        {else/}
+                        <button class="mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey"
+                            style="font-size:12px;min-height:28px;line-height:28px"
+                            onclick="changeAwsIp('{$server.instance_id}', {$server.account_id}, '{$server.region}')">更换 IPv4</button>
+                        {/eq}
+                    </td>
+                </tr>
+                {/volist}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mdui-m-t-2"></div>
+</main>
+</body>
+
+<script>
+    function markColor() {
+        var tds = document.getElementsByTagName('td');
+        for (var i = 0; i < tds.length; i++) {
+            if (tds[i].textContent.indexOf('running') !== -1) {
+                tds[i].style.color = 'green';
+            }
+            if (tds[i].textContent.indexOf('stopping') !== -1 || tds[i].textContent.indexOf('pending') !== -1) {
+                tds[i].style.color = 'orange';
+            }
+            if (tds[i].textContent.indexOf('stopped') !== -1 || tds[i].textContent.indexOf('terminated') !== -1) {
+                tds[i].style.color = 'red';
+            }
+        }
+    }
+    markColor();
+
+    function postAwsAddressAction(url, instanceId, accountId, location) {
+        $.ajax({
+            method: 'POST',
+            url: url,
+            dataType: "json",
+            data: {
+                instance_id: instanceId,
+                account_id: accountId,
+                location: location,
+            },
+            success: function (data) {
+                mdui.alert(data.content, data.title, function () { location.reload(); });
+            }
+        });
+    }
+
+    function changeAwsIp(instanceId, accountId, location) {
+        mdui.confirm('将为实例 ' + instanceId + ' 更换弹性公网 IPv4 地址（旧地址将被释放）', '更换确认',
+            function () {
+                postAwsAddressAction("/user/server/aws/changeip", instanceId, accountId, location);
+            },
+            function () { },
+            { confirmText: "确定", cancelText: "取消" }
+        );
+    }
+
+    function changeAwsIpv6(instanceId, accountId, location) {
+        mdui.confirm('将为实例 ' + instanceId + ' 更换公网 IPv6 地址（旧地址将被解绑）', '更换确认',
+            function () {
+                postAwsAddressAction("/user/server/aws/changeipv6", instanceId, accountId, location);
+            },
+            function () { },
+            { confirmText: "确定", cancelText: "取消" }
+        );
+    }
+</script>
+
+{include file="../app/view/user/footer.html" /}
+
+</html>
