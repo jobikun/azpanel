@@ -22,6 +22,9 @@ Route::get('/login',           'Auth/index');
 Route::post('/login',          'Auth/login');
 Route::post('/logout',         'Auth/logout');
 
+// Internal API for Cloudflare DNS automation
+Route::post('/api/internal/cloudflare-dns/change-ip', 'InternalCloudflareDns/changeIp');
+
 // 注册账户
 Route::get('/register',        'Auth/registerIndex');
 Route::post('/register/code',  'Auth/registerCode');
