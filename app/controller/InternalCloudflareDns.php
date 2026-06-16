@@ -146,6 +146,13 @@ class InternalCloudflareDns extends BaseController
                     continue;
                 }
 
+                if (is_object($result) && method_exists($result, 'toArray')) {
+                    $result = $result->toArray();
+                }
+                if (!is_array($result)) {
+                    continue;
+                }
+
                 $synced += self::cacheAwsInstances((int) $account->id, $region, $result);
             }
         }
@@ -166,6 +173,7 @@ class InternalCloudflareDns extends BaseController
             return 0;
         }
         $cached = 0;
+        $active_keys = [];
         foreach (($describe_result['Reservations'] ?? []) as $reservation) {
             foreach (($reservation['Instances'] ?? []) as $instance) {
                 $state = (string) ($instance['State']['Name'] ?? 'unknown');
@@ -179,8 +187,10 @@ class InternalCloudflareDns extends BaseController
                 $name = self::awsInstanceName($instance, $instance_id);
                 $public_ipv4 = self::awsInstancePublicIpv4($instance);
                 if ($public_ipv4 !== '') {
+                    $key = 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv4';
+                    $active_keys[$key] = true;
                     self::persistAwsResource([
-                        'key' => 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv4',
+                        'key' => $key,
                         'name' => $name,
                         'resource_id' => $instance_id,
                         'account_id' => (string) $account_id,
@@ -193,8 +203,10 @@ class InternalCloudflareDns extends BaseController
                     $cached++;
                 }
                 foreach (self::awsInstanceIpv6Addresses($instance) as $ipv6) {
+                    $key = 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv6|' . $ipv6;
+                    $active_keys[$key] = true;
                     self::persistAwsResource([
-                        'key' => 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv6|' . $ipv6,
+                        'key' => $key,
                         'name' => $name . ' IPv6',
                         'resource_id' => $instance_id,
                         'account_id' => (string) $account_id,
@@ -208,7 +220,22 @@ class InternalCloudflareDns extends BaseController
                 }
             }
         }
+        self::pruneStaleAwsResources($account_id, $region, array_keys($active_keys));
         return $cached;
+    }
+
+    private static function pruneStaleAwsResources(int $account_id, string $region, array $active_keys): void
+    {
+        try {
+            $query = AwsServer::where('account_id', $account_id)->where('region', $region);
+            if ($active_keys === []) {
+                $query->delete();
+                return;
+            }
+
+            $query->where('resource_key', 'not in', $active_keys)->delete();
+        } catch (\Throwable $e) {
+        }
     }
 
     public static function cacheCreatedAwsInstance(int $account_id, string $region, array $instance): int
@@ -280,6 +307,69 @@ class InternalCloudflareDns extends BaseController
         return $cached;
     }
 
+    private static function cacheChangedAwsInstance(int $account_id, string $region, array $instance, string $ip_version, string $new_ip): void
+    {
+        $region = trim($region);
+        $new_ip = trim($new_ip);
+        $instance_id = trim((string) ($instance['InstanceId'] ?? ''));
+        if ($account_id <= 0 || $region === '' || $instance_id === '' || $new_ip === '') {
+            return;
+        }
+
+        $name = self::awsInstanceName($instance, $instance_id);
+        $state = (string) ($instance['State']['Name'] ?? 'running');
+        $item = [
+            'name' => $ip_version === 'ipv6' ? $name . ' IPv6' : $name,
+            'resource_id' => $instance_id,
+            'account_id' => (string) $account_id,
+            'region' => $region,
+            'ip_version' => $ip_version,
+            'current_ip' => $new_ip,
+            'status' => $state,
+            'instance_type' => (string) ($instance['InstanceType'] ?? ''),
+        ];
+
+        if ($ip_version === 'ipv6') {
+            $remark = self::cachedAwsRemark($account_id, $region, $instance_id, 'ipv6');
+            self::deleteCachedAwsResources($account_id, $region, $instance_id, 'ipv6');
+            $item['key'] = 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv6|' . $new_ip;
+            if ($remark !== '') {
+                $item['remark'] = $remark;
+            }
+        } else {
+            $item['key'] = 'aws|' . $account_id . '|' . $region . '|' . $instance_id . '|ipv4';
+        }
+
+        self::persistAwsResource($item);
+    }
+
+    private static function cachedAwsRemark(int $account_id, string $region, string $instance_id, string $ip_version): string
+    {
+        try {
+            $server = AwsServer::where('account_id', $account_id)
+                ->where('region', $region)
+                ->where('instance_id', $instance_id)
+                ->where('ip_version', $ip_version)
+                ->order('updated_at', 'desc')
+                ->find();
+            return $server === null ? '' : (string) ($server->remark ?? '');
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    private static function deleteCachedAwsResources(int $account_id, string $region, string $instance_id, string $ip_version): void
+    {
+        try {
+            AwsServer::where('account_id', $account_id)
+                ->where('region', $region)
+                ->where('instance_id', $instance_id)
+                ->where('ip_version', $ip_version)
+                ->delete();
+        } catch (\Throwable $e) {
+        }
+    }
+
     private static function persistAwsResource(array $item): void
     {
         try {
@@ -335,6 +425,7 @@ class InternalCloudflareDns extends BaseController
             if ($key === '') {
                 continue;
             }
+            $last_seen_at = (int) ($server->last_seen_at ?? 0);
             $items[] = [
                 'key' => $key,
                 'provider' => 'aws',
@@ -348,6 +439,8 @@ class InternalCloudflareDns extends BaseController
                 'remark' => (string) ($server->remark ?? ''),
                 'port' => 22,
                 'cached' => true,
+                'last_seen_at' => $last_seen_at,
+                'cache_age_seconds' => $last_seen_at > 0 ? max(0, time() - $last_seen_at) : null,
             ];
         }
         return $items;
@@ -424,7 +517,7 @@ class InternalCloudflareDns extends BaseController
         $candidates[] = trim((string) ($payload['token'] ?? ''));
 
         foreach ($candidates as $candidate) {
-            if ($candidate !== '' && hash_equals($expected, $candidate)) {
+            if ($this->tokenMatches($expected, $candidate)) {
                 return null;
             }
         }
@@ -463,6 +556,25 @@ class InternalCloudflareDns extends BaseController
         }
 
         return '';
+    }
+
+    private function tokenMatches(string $expected, string $candidate): bool
+    {
+        $expected = trim($expected);
+        $candidate = trim($candidate);
+        if ($expected === '' || $candidate === '') {
+            return false;
+        }
+
+        if (hash_equals($expected, $candidate)) {
+            return true;
+        }
+
+        if (preg_match('/^[a-f0-9]{128}$/i', $expected)) {
+            return hash_equals($expected, Tools::encryption($candidate));
+        }
+
+        return false;
     }
 
     private function normalizeIpVersion(string $value): string
@@ -653,6 +765,7 @@ class InternalCloudflareDns extends BaseController
             'AllocationId' => $new_allocation_id,
             'InstanceId' => $instance_id,
         ]);
+        self::cacheChangedAwsInstance($account_id, $region, $instance, 'ipv4', $new_public_ip);
 
         return [
             'provider' => 'aws',
@@ -696,6 +809,7 @@ class InternalCloudflareDns extends BaseController
         AwsApi::ensureSubnetIpv6CidrBlock($client, $vpc_id, $subnet_id);
         AwsApi::ensureRouteTableIpv6Route($client, $vpc_id, $subnet_id);
         $new_ipv6 = AwsApi::assignIpv6Addresses($client, $network_interface_id);
+        self::cacheChangedAwsInstance($account_id, $region, $instance, 'ipv6', $new_ipv6);
 
         return [
             'provider' => 'aws',
