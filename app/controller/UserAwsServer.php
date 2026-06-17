@@ -490,6 +490,60 @@ class UserAwsServer extends UserBase
         }
     }
 
+    /**
+     * 一键释放当前区域下所有未使用（未绑定实例）的弹性 IP，腾出配额
+     */
+    public function releaseUnusedIps()
+    {
+        $account_id = input('account_id/d');
+        $location = input('location/s');
+
+        $account = Aws::where('user_id', session('user_id'))->find($account_id);
+        if ($account === null) {
+            return json(Tools::msg('0', '释放失败', '账户未找到'));
+        }
+
+        try {
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+
+            $result = $client->describeAddresses([
+                'Filters' => [
+                    ['Name' => 'domain', 'Values' => ['vpc']],
+                ],
+            ]);
+
+            $released = [];
+            $failed = [];
+            foreach ($result['Addresses'] as $address) {
+                // 既没绑定实例、也没有关联 ID 的，就是未使用的闲置弹性 IP
+                if (empty($address['AssociationId']) && empty($address['InstanceId'])) {
+                    try {
+                        $client->releaseAddress(['AllocationId' => $address['AllocationId']]);
+                        $released[] = $address['PublicIp'];
+                    } catch (\Exception $e) {
+                        $failed[] = $address['PublicIp'] . '（' . $e->getMessage() . '）';
+                    }
+                }
+            }
+
+            if ($released === [] && $failed === []) {
+                return json(Tools::msg('1', '释放完成', '当前区域没有未使用的弹性 IP'));
+            }
+
+            $content = '已释放 ' . count($released) . ' 个闲置弹性 IP';
+            if ($released !== []) {
+                $content .= '：<br>' . implode('<br>', $released);
+            }
+            if ($failed !== []) {
+                $content .= '<br>释放失败 ' . count($failed) . ' 个：<br>' . implode('<br>', $failed);
+            }
+
+            return json(Tools::msg('1', '释放完成', $content));
+        } catch (\Exception $e) {
+            return json(Tools::msg('0', '释放失败', $e->getMessage()));
+        }
+    }
+
     public function addIpv4()
     {
         $account_id = input('account_id/d');

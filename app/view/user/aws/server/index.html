@@ -63,6 +63,10 @@
                 class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
                 <i class="mdui-icon material-icons" style="color:white;">delete_forever</i>&nbsp;销毁
             </button>
+            <button id="releaseUnusedIps"
+                class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+                <i class="mdui-icon material-icons" style="color:white;">cleaning_services</i>&nbsp;释放闲置IP
+            </button>
             <div class="mdui-m-t-2"></div>
             <div class="mdui-table-fluid-fixed">
                 <table id="list" class="mdui-table mdui-table-selectable" style="border: none;">
@@ -308,6 +312,36 @@
             }
         );
     }
+
+    $('#releaseUnusedIps').on('click', function () {
+        var account = $('#account').val();
+        var location = $('#location').val();
+        if (!account || !location) {
+            mdui.alert('请先选择账号和地区');
+            return;
+        }
+        mdui.confirm('将释放【当前区域】下所有未绑定实例的闲置弹性 IPv4，正在使用的不受影响。确定继续？', '释放闲置 IP',
+            function () {
+                $.ajax({
+                    method: 'POST',
+                    url: "/user/server/aws/releaseunusedips",
+                    dataType: "json",
+                    data: {
+                        account_id: account,
+                        location: location,
+                    },
+                    success: function (data) {
+                        mdui.alert(data.content, data.title);
+                    }
+                });
+            },
+            function () { },
+            {
+                confirmText: "确定",
+                cancelText: "取消",
+            }
+        );
+    });
 </script>
 
 {include file="../app/view/user/footer.html" /}

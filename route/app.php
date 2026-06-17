@@ -89,6 +89,7 @@ Route::post('/user/server/aws/addipv4',           'UserAwsServer/addIpv4');
 Route::post('/user/server/aws/addipv6',           'UserAwsServer/addIpv6');
 Route::post('/user/server/aws/changeip',          'UserAwsServer/changeIp');
 Route::post('/user/server/aws/changeipv6',        'UserAwsServer/changeIpv6');
+Route::post('/user/server/aws/releaseunusedips',  'UserAwsServer/releaseUnusedIps');
 
 // Linode 账户
 Route::resource('/user/linode',                   'UserLinode');
