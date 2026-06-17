@@ -761,10 +761,16 @@ class InternalCloudflareDns extends BaseController
         }
 
         [$new_public_ip, $new_allocation_id] = AwsApi::allocateAddress($client);
-        $client->associateAddress([
-            'AllocationId' => $new_allocation_id,
-            'InstanceId' => $instance_id,
-        ]);
+        // 绑定新弹性 IP，失败则释放刚申请的 IP，避免僵尸 EIP 占满配额
+        try {
+            $client->associateAddress([
+                'AllocationId' => $new_allocation_id,
+                'InstanceId' => $instance_id,
+            ]);
+        } catch (\Exception $e) {
+            $client->releaseAddress(['AllocationId' => $new_allocation_id]);
+            throw $e;
+        }
         self::cacheChangedAwsInstance($account_id, $region, $instance, 'ipv4', $new_public_ip);
 
         return [

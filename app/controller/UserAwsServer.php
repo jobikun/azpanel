@@ -464,19 +464,25 @@ class UserAwsServer extends UserBase
                 ]);
             }
 
-            // 分配新弹性 IP
-            [$new_public_ip, $new_allocation_id] = AwsApi::allocateAddress($client);
-
-            // 获取子网 ID 并关联
+            // 获取子网 ID
             $subnet_id = $instance['SubnetId'] ?? null;
             if ($subnet_id === null) {
                 throw new \Exception('无法获取实例的子网信息');
             }
 
-            $client->associateAddress([
-                'AllocationId' => $new_allocation_id,
-                'InstanceId' => $instance_id,
-            ]);
+            // 分配新弹性 IP
+            [$new_public_ip, $new_allocation_id] = AwsApi::allocateAddress($client);
+
+            // 绑定新弹性 IP，失败则释放刚申请的 IP，避免僵尸 EIP 占满配额
+            try {
+                $client->associateAddress([
+                    'AllocationId' => $new_allocation_id,
+                    'InstanceId' => $instance_id,
+                ]);
+            } catch (\Exception $e) {
+                $client->releaseAddress(['AllocationId' => $new_allocation_id]);
+                throw $e;
+            }
 
             return json(Tools::msg('1', '更换成功', "旧 IP: {$old_public_ip}<br>新 IP: {$new_public_ip}"));
         } catch (\Exception $e) {
