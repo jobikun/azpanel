@@ -961,9 +961,24 @@ class UserAzure extends UserBase
         $count = 0;
         $ip_set = [];
         $server_id_set = [];
-        $client = self::clientForAccount($account);
-        $resources = AzureApi::getAzureResourceGroupsList($id, $account->az_sub_id, $client);
-        $virtual_machines = AzureApi::readAzureVirtualMachinesList($id, $account->az_sub_id, $client);
+        $error = '';
+        $resources = ['value' => []];
+        $virtual_machines = [];
+
+        if (trim((string) $account->az_sub_id) === '') {
+            $error = '此账户还没有订阅 ID（az_sub_id 为空），请先到账户列表刷新订阅状态后再查看资源组。';
+        } else {
+            try {
+                $client = self::clientForAccount($account);
+                $resources = AzureApi::getAzureResourceGroupsList($id, $account->az_sub_id, $client);
+                $virtual_machines = AzureApi::readAzureVirtualMachinesList($id, $account->az_sub_id, $client);
+            } catch (\Throwable $e) {
+                $error = '加载资源组失败：' . $e->getMessage();
+                $resources = ['value' => []];
+                $virtual_machines = [];
+            }
+        }
+
         $server_ip_set = [];
         $servers = AzureServer::where('user_id', session('user_id'))
             ->where('account_id', $id)
@@ -979,9 +994,13 @@ class UserAzure extends UserBase
         foreach ($virtual_machines as $index => $vm) {
             $vm_id = $vm['properties']['vmId'];
             if (!isset($server_id_set[$vm_id])) {
-                $details = explode('/', $vm['properties']['networkProfile']['networkInterfaces']['0']['id']);
-                $network = AzureApi::getAzureNetworkInterfacesDetails($id, $details['8'], $details['4'], $details['2'], $client);
-                $ip_set[$vm_id] = $network['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['properties']['ipAddress'] ?? 'null';
+                try {
+                    $details = explode('/', $vm['properties']['networkProfile']['networkInterfaces']['0']['id']);
+                    $network = AzureApi::getAzureNetworkInterfacesDetails($id, $details['8'], $details['4'], $details['2'], $client ?? null);
+                    $ip_set[$vm_id] = $network['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['properties']['ipAddress'] ?? 'null';
+                } catch (\Throwable $e) {
+                    $ip_set[$vm_id] = 'null';
+                }
                 $virtual_machines[$index]['panel_server_id'] = 0;
             } else {
                 $ip_set[$vm_id] = $server_ip_set[$vm_id] ?? 'null';
@@ -993,6 +1012,8 @@ class UserAzure extends UserBase
         View::assign('virtual_machines', $virtual_machines);
         View::assign('ip_set', $ip_set);
         View::assign('server_id_set', $server_id_set);
+        View::assign('error', $error);
+        View::assign('bound_proxy_id', (int) ($account->proxy_id ?? 0));
         View::assign('proxies', $this->getProxies());
         return View::fetch('../app/view/user/azure/resources.html');
     }

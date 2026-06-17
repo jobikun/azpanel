@@ -12,6 +12,12 @@
                 <p>你可以在这里查看此账户下的所有资源组</p>
             </div>
 
+            {if $error != ''}
+            <div class="mdui-m-t-2" style="padding:12px 16px;background:#fdecea;color:#b71c1c;border-radius:4px">
+                {$error}
+            </div>
+            {/if}
+
             <div class="mdui-table-fluid mdui-m-t-2">
                 <table class="mdui-table">
                     <thead>
@@ -43,7 +49,7 @@
             <p style="color: #3F51B5; font-size: 18px">虚拟机列表</p>
 
             <div class="mdui-m-t-2">
-                代理来源：<select id="proxy_mode" style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
+                代理来源：<select id="proxy_mode" data-current="{$bound_proxy_id}" style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
                     <option value="none">不使用代理</option>
                     <option value="default">使用默认代理池</option>
                     {volist name="proxies" id="proxy"}
@@ -122,6 +128,20 @@
 
 <script>
     var uuid = '';
+
+    // 回显账户绑定的代理（0=不使用代理，-1=跟随默认代理，正数=具体代理）
+    (function () {
+        var el = document.getElementById('proxy_mode');
+        if (!el) return;
+        var cur = el.getAttribute('data-current');
+        var mode = 'none';
+        if (cur === '-1') {
+            mode = 'default';
+        } else if (cur && parseInt(cur, 10) > 0) {
+            mode = 'pool:' + cur;
+        }
+        el.value = mode;
+    })();
 
     function guid() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
