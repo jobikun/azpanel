@@ -131,11 +131,16 @@ class InternalCloudflareDns extends BaseController
         $requested_region = trim((string) ($payload['region'] ?? $payload['location'] ?? ''));
         $accounts = Aws::where('disable', 0)->order('id', 'desc')->select();
         $regions = $requested_region !== '' ? [$requested_region => $requested_region] : AwsList::instanceRegion();
-        $proxy_url = self::proxyUrl($payload);
         $synced = 0;
 
         foreach ($accounts as $account) {
             if ($requested_account > 0 && (int) $account->id !== $requested_account) {
+                continue;
+            }
+            // 每个账号都走它自己绑定的代理
+            try {
+                $proxy_url = ProxyController::getProxyUrlForAccount($account);
+            } catch (\Throwable $e) {
                 continue;
             }
             foreach ($regions as $region => $_label) {
@@ -610,17 +615,18 @@ class InternalCloudflareDns extends BaseController
         }
 
         $old_ip = (string) ($server->ip_address ?? '');
-        $proxy_url = self::proxyUrl($payload);
+
+        $account = Azure::find($server->account_id);
+        if ($account === null) {
+            throw new \RuntimeException('Azure account not found: ' . $server->account_id);
+        }
+
+        $proxy_url = ProxyController::getProxyUrlForAccount($account);
         $client = ProxyController::createGuzzleClient($proxy_url, [], false);
 
         $sub_info = AzureApi::getAzureSubscription($server->account_id, $client);
         if (($sub_info['value'][0]['state'] ?? '') !== 'Enabled') {
             throw new \RuntimeException('Azure subscription is not Enabled.');
-        }
-
-        $account = Azure::find($server->account_id);
-        if ($account === null) {
-            throw new \RuntimeException('Azure account not found: ' . $server->account_id);
         }
 
         $resource_group = $server->resource_group;
@@ -714,7 +720,7 @@ class InternalCloudflareDns extends BaseController
             throw new \RuntimeException('AWS account not found: ' . $account_id);
         }
 
-        $proxy_url = self::proxyUrl($payload);
+        $proxy_url = ProxyController::getProxyUrlForAccount($account);
         $client = AwsApi::createAWSClient($region, $account->ak, $account->sk, $proxy_url !== null && $proxy_url !== '', 'ec2', $proxy_url);
 
         if ($ip_version === 'ipv6') {
@@ -827,21 +833,6 @@ class InternalCloudflareDns extends BaseController
             'new_ip' => $new_ipv6,
             'network_interface_id' => $network_interface_id,
         ];
-    }
-
-    private static function proxyUrl(array $payload): ?string
-    {
-        $proxy_url = trim((string) ($payload['proxy_url'] ?? ''));
-        if ($proxy_url !== '') {
-            return $proxy_url;
-        }
-
-        try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
-            return $proxy_url === '' ? null : $proxy_url;
-        } catch (\Throwable $e) {
-            return null;
-        }
     }
 
     private function isTruthy($value): bool

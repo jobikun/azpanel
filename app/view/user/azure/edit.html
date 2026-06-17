@@ -63,6 +63,17 @@
                             <textarea class="mdui-textfield-input" disabled>{$az_api.password}</textarea>
                         </div>
                     </div>
+                    <div class="mdui-col-sm-12 mdui-col-md-12 mdui-m-t-2">
+                        绑定代理（此账户的所有操作都将默认使用该代理）：
+                        <select id="proxy_mode" data-current="{$account.proxy_id}"
+                            style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
+                            <option value="none">不使用代理</option>
+                            <option value="default">使用默认代理池</option>
+                            {volist name="proxies" id="proxy"}
+                            <option value="pool:{$proxy.id}">{$proxy.name} - [{:strtoupper($proxy.protocol)}{if $proxy.source_type == 'api'} API{/if}] {if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}{if $proxy.is_default == 1}（默认）{/if}</option>
+                            {/volist}
+                        </select>
+                    </div>
                     <div class="mdui-col-sm-12 mdui-col-md-12">
                         <p style="color: #3F51B5; font-size: 18px">操作</p>
                         <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-blue-grey"
@@ -94,7 +105,22 @@
     });
 
     var $ = mdui.$;
+
+    // 回显当前绑定的代理
+    (function () {
+        var cur = document.getElementById('proxy_mode').getAttribute('data-current');
+        var mode = 'none';
+        if (cur === '-1') {
+            mode = 'default';
+        } else if (cur && parseInt(cur, 10) > 0) {
+            mode = 'pool:' + cur;
+        }
+        document.getElementById('proxy_mode').value = mode;
+    })();
+
     $('#update').on('click', function () {
+        var proxyMode = document.getElementById('proxy_mode').value;
+        var proxyId = proxyMode.indexOf('pool:') === 0 ? proxyMode.replace('pool:', '') : 0;
         mdui.confirm('确认更新此账户资料么', '更新确认',
             function () {
                 $.ajax({
@@ -103,7 +129,9 @@
                     data: {
                         user_mark: $('#user_mark').val(),
                         az_email: $('#az_email').val(),
-                        az_passwd: $('#az_passwd').val()
+                        az_passwd: $('#az_passwd').val(),
+                        proxy_mode: proxyMode,
+                        proxy_id: proxyId
                     },
                     dataType: "json",
                     success: function (data) {

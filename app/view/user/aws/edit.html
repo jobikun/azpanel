@@ -49,6 +49,16 @@
                             <textarea class="mdui-textfield-input" id="sk">{$account.sk}</textarea>
                         </div>
                     </div>
+                    <div class="mdui-col-12 mdui-m-t-2">
+                        绑定代理（此账户的所有操作都将默认使用该代理）：
+                        <select id="proxy_id" class="mdui-select" mdui-select data-current="{$account.proxy_id}">
+                            <option value="0">不使用代理</option>
+                            <option value="-1">跟随默认代理</option>
+                            {volist name="proxies" id="proxy"}
+                            <option value="{$proxy.id}">{$proxy.name}（{$proxy.address}:{$proxy.port}）</option>
+                            {/volist}
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -67,6 +77,14 @@
 </body>
 
 <script>
+    // 回显当前绑定的代理
+    (function () {
+        var cur = $('#proxy_id').attr('data-current');
+        if (cur !== undefined && cur !== '') {
+            $('#proxy_id').val(cur);
+        }
+    })();
+
     $('#update').on('click', function () {
         mdui.confirm('确认更新此账户资料么', '更新确认',
             function () {
@@ -79,6 +97,7 @@
                         mark: $('#mark').val(),
                         ak: $('#ak').val(),
                         sk: $('#sk').val(),
+                        proxy_id: $('#proxy_id').val(),
                     },
                     dataType: "json",
                     success: function (data) {

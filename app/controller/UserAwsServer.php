@@ -244,8 +244,8 @@ class UserAwsServer extends UserBase
         }
         // 检查区域权限
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
-            $proxy_label = ProxyController::getProxyLabelFromInput();
+            $proxy_url = ProxyController::getProxyUrlForAccount($account);
+            $proxy_label = ProxyController::getProxyLabelForAccount($account);
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', $e->getMessage()));
         }
@@ -334,7 +334,7 @@ class UserAwsServer extends UserBase
         $account = Aws::where('user_id', session('user_id'))->find($id);
         try {
             $location = input('location/s');
-            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlForAccount($account));
             $result = $client->describeInstances()->toArray();
             // 加载到的实例顺手写入 aws_server 缓存，供 cloudflare_dns 拉取
             try {
@@ -364,7 +364,7 @@ class UserAwsServer extends UserBase
             $location = input('location/s');
             $instances = input('instances/a');
 
-            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlForAccount($account));
             return json(AwsApi::manageInstances($client, $action, $instances));
         } catch (\Exception $e) {
             return json([
@@ -422,7 +422,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlForAccount($account));
 
             // 获取实例信息
             $result = $client->describeInstances([
@@ -504,7 +504,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlForAccount($account));
 
             $result = $client->describeAddresses([
                 'Filters' => [
@@ -556,7 +556,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlForAccount($account));
 
             // 分配弹性 IP
             [$public_ip, $allocation_id] = AwsApi::allocateAddress($client);
@@ -599,7 +599,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlForAccount($account));
             $result = $client->describeInstances([
                 'Filters' => [
                     [
@@ -652,7 +652,7 @@ class UserAwsServer extends UserBase
         }
 
         try {
-            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlFromInputOrDefault());
+            $client = $this->getAWSClient($location, $account->ak, $account->sk, ProxyController::getProxyUrlForAccount($account));
             $result = $client->describeInstances([
                 'Filters' => [
                     [

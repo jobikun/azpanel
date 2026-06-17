@@ -71,6 +71,16 @@
                     </div>
                     <div id="more-section" style="display: none">
                     <div class="mdui-col-12">
+                        绑定代理（此账户的所有操作都将默认使用该代理）：
+                        <select id="proxy_id" class="mdui-select" mdui-select>
+                            <option value="0">不使用代理</option>
+                            <option value="-1">跟随默认代理</option>
+                            {volist name="proxies" id="proxy"}
+                            <option value="{$proxy.id}">{$proxy.name}（{$proxy.address}:{$proxy.port}）</option>
+                            {/volist}
+                        </select>
+                    </div>
+                    <div class="mdui-col-12 mdui-m-t-2">
                         备注填充：
                         <select id="remark_filling" class="mdui-select" mdui-select>
                             <option value="input">使用输入框值</option>
@@ -162,6 +172,7 @@
                         user_mark: $('#user_mark').val(),
                         batch_addition: $('#batch_addition').val(),
                         remark_filling: $('#remark_filling').val(),
+                        proxy_id: $('#proxy_id').val(),
                     },
                     dataType: "json",
                     success: function (data) {

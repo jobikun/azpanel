@@ -138,6 +138,7 @@ class UserAzure extends UserBase
                 $account->az_passwd = $api['login_passwd'];
                 $account->user_mark = $remark_filling === 'input' ? $user_mark : $remark_filling;
                 $account->az_api = json_encode($az_api);
+                $account->proxy_id = self::resolveBoundProxyId();
                 $account->created_at = time();
                 $account->updated_at = time();
                 $account->save();
@@ -222,6 +223,7 @@ class UserAzure extends UserBase
 
         View::assign('az_api', $az_api);
         View::assign('account', $account);
+        View::assign('proxies', $this->getProxies());
         View::assign('share', json_encode($share, JSON_PRETTY_PRINT));
         return View::fetch('../app/view/user/azure/edit.html');
     }
@@ -325,12 +327,13 @@ class UserAzure extends UserBase
         $account->az_passwd = $az_passwd;
         $account->user_mark = $remark_filling === 'input' ? $user_mark : $remark_filling;
         $account->az_api = json_encode($az_api);
+        $account->proxy_id = self::resolveBoundProxyId();
         $account->created_at = time();
         $account->updated_at = time();
         $account->save();
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = ProxyController::getProxyUrlForAccount($account);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
             $sub_info = AzureApi::getAzureSubscription($account->id, $client); // array
             if ((int) $sub_info['count']['value'] === 0) {
@@ -465,6 +468,7 @@ class UserAzure extends UserBase
         $account->az_email = $az_email;
         $account->az_passwd = $az_passwd;
         $account->user_mark = $user_mark;
+        $account->proxy_id = self::resolveBoundProxyId();
         $account->save();
 
         return json(Tools::msg('1', '修改成功', '将返回账户列表'));
@@ -588,11 +592,12 @@ class UserAzure extends UserBase
         return json(Tools::msg('0', '统计结果', $text));
     }
 
-    public static function refreshTheResourceStatusUnderTheAccount($account)
+    public static function refreshTheResourceStatusUnderTheAccount($account, ?\GuzzleHttp\Client $client = null)
     {
+        $client = $client ?? self::clientForAccount($account);
         $servers = AzureServer::where('account_id', $account->id)->select();
         foreach ($servers as $server) {
-            $vm_status = AzureApi::getAzureVirtualMachineStatus($server->account_id, $server->request_url);
+            $vm_status = AzureApi::getAzureVirtualMachineStatus($server->account_id, $server->request_url, $client);
             $server->status = $vm_status['statuses']['1']['code'];
             $server->save();
         }
@@ -601,9 +606,10 @@ class UserAzure extends UserBase
     public function refreshAzureSubscriptionStatus($id)
     {
         $account = Azure::where('user_id', session('user_id'))->find($id);
+        $client = self::clientForAccount($account);
 
         try {
-            $sub_info = AzureApi::getAzureSubscription($id); // array
+            $sub_info = AzureApi::getAzureSubscription($id, $client); // array
         } catch (\Exception $e) {
             if (Str::contains($e->getMessage(), '401 Unauthorized')) {
                 $account->az_sub_status = 'Invalid';
@@ -621,7 +627,7 @@ class UserAzure extends UserBase
         $account->save();
 
         if ($sub_info['value']['0']['state'] !== 'Enabled') {
-            self::refreshTheResourceStatusUnderTheAccount($account);
+            self::refreshTheResourceStatusUnderTheAccount($account, $client);
         }
 
         return json(Tools::msg('1', '刷新结果', '刷新成功'));
@@ -666,9 +672,10 @@ class UserAzure extends UserBase
 
             try {
                 UserTask::update($task_id, $count / $steps, '正在刷新 ' . $account->az_email);
-                $sub_info = AzureApi::getAzureSubscription($account->id); // array
+                $client = self::clientForAccount($account);
+                $sub_info = AzureApi::getAzureSubscription($account->id, $client); // array
                 if (in_array('resources', $refresh_action)) {
-                    AzureApi::getAzureVirtualMachines($account->id);
+                    AzureApi::getAzureVirtualMachines($account->id, $client);
                 }
             } catch (\Exception $e) {
                 if (Str::contains($e->getMessage(), '401 Unauthorized')) {
@@ -688,7 +695,7 @@ class UserAzure extends UserBase
             $account->save();
 
             if ($sub_info['value']['0']['state'] !== 'Enabled') {
-                self::refreshTheResourceStatusUnderTheAccount($account);
+                self::refreshTheResourceStatusUnderTheAccount($account, $client);
             }
         }
 
@@ -701,7 +708,7 @@ class UserAzure extends UserBase
         $account = Azure::where('user_id', session('user_id'))->find($id);
 
         try {
-            $count = AzureApi::getAzureVirtualMachines($account->id);
+            $count = AzureApi::getAzureVirtualMachines($account->id, self::clientForAccount($account));
         } catch (\Exception $e) {
             return json(Tools::msg('0', '更新失败', $e->getMessage()));
         }
@@ -721,8 +728,8 @@ class UserAzure extends UserBase
         $location = 'malaysiawest';
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
-            $proxy_label = ProxyController::getProxyLabelFromInput();
+            $proxy_url = ProxyController::getProxyUrlForAccount($account);
+            $proxy_label = ProxyController::getProxyLabelForAccount($account);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
         } catch (\Exception $e) {
             return json(Tools::msg('0', 'Malaysia West 检查失败', Tools::exceptionMessage($e)));
@@ -996,6 +1003,37 @@ class UserAzure extends UserBase
             ->select();
 
         return ProxyController::normalizeProxyRecords($proxies);
+    }
+
+    /**
+     * 按账号绑定的代理构造 Guzzle 客户端，供 AzureApi 各方法复用。
+     */
+    private static function clientForAccount($account)
+    {
+        return ProxyController::createGuzzleClient(ProxyController::getProxyUrlForAccount($account), [], false);
+    }
+
+    /**
+     * 把表单的 proxy_mode(none/default/pool:ID) + proxy_id 映射为账号绑定 proxy_id。
+     * 约定：0=不使用代理，-1=跟随默认代理，正数=具体 user_proxy.id
+     */
+    private static function resolveBoundProxyId(): int
+    {
+        $proxy_mode = trim((string) input('proxy_mode/s', ''));
+        $proxy_id = (int) input('proxy_id/d', 0);
+        $user_id = (int) session('user_id');
+
+        if ($proxy_mode === 'default') {
+            return -1;
+        }
+        if ($proxy_mode === 'none' || $proxy_mode === '') {
+            return 0;
+        }
+        if ($proxy_id <= 0 && str_starts_with($proxy_mode, 'pool:')) {
+            $proxy_id = (int) substr($proxy_mode, 5);
+        }
+
+        return ProxyController::normalizeBoundProxyId($proxy_id, $user_id);
     }
 
     public function readResourceGroup($id, $name)

@@ -290,8 +290,8 @@ class UserAzureServer extends UserBase
 
         // 创建http会话
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
-            $proxy_label = ProxyController::getProxyLabelFromInput();
+            $proxy_url = ProxyController::getProxyUrlForAccount($account);
+            $proxy_label = ProxyController::getProxyLabelForAccount($account);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', self::exceptionMessage($e)));
@@ -701,6 +701,15 @@ class UserAzureServer extends UserBase
         return json(Tools::msg('1', '修改结果', '修改成功'));
     }
 
+    /**
+     * 按服务器所属账号绑定的代理解析代理 URL。
+     */
+    private static function proxyUrlForServer($server): ?string
+    {
+        $account = Azure::find($server->account_id);
+        return ProxyController::getProxyUrlForAccount($account);
+    }
+
     public function resize($uuid)
     {
         $new_size = input('new_size/s');
@@ -712,7 +721,7 @@ class UserAzureServer extends UserBase
         }
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = self::proxyUrlForServer($server);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
             AzureApi::virtualMachinesResize($new_size, $server->location, $server->account_id, $server->request_url, $client);
         } catch (\Exception $e) {
@@ -753,7 +762,7 @@ class UserAzureServer extends UserBase
         $task_id = UserTask::create(session('user_id'), '更换硬盘大小', $params, $task_uuid);
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = self::proxyUrlForServer($server);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
 
             UserTask::update($task_id, (++$count / 4), '正在分离计算资源');
@@ -819,7 +828,7 @@ class UserAzureServer extends UserBase
         }
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = self::proxyUrlForServer($server);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
             AzureApi::manageVirtualMachine($action, $server->account_id, $server->request_url, $client);
         } catch (\Exception $e) {
@@ -842,7 +851,7 @@ class UserAzureServer extends UserBase
         }
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = self::proxyUrlForServer($server);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
             $vm_status = AzureApi::getAzureVirtualMachineStatus($server->account_id, $server->request_url, $client);
         } catch (\Exception $e) {
@@ -871,7 +880,7 @@ class UserAzureServer extends UserBase
         $task_id = UserTask::create(session('user_id'), '更换公网地址', $params, $task_uuid);
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = self::proxyUrlForServer($server);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
 
             UserTask::update($task_id, (++$count / $steps), "正在检查 {$server->name} 归属订阅状态");
@@ -1006,7 +1015,7 @@ class UserAzureServer extends UserBase
         $task_id = UserTask::create(session('user_id'), '增加公网 IPv4 地址', $params, $task_uuid);
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = self::proxyUrlForServer($server);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
 
             UserTask::update($task_id, (++$count / $steps), '正在检查订阅状态');
@@ -1300,7 +1309,7 @@ class UserAzureServer extends UserBase
         }
 
         try {
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+            $proxy_url = ProxyController::getProxyUrlForAccount($account);
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
             $limits = AzureApi::getResourceSkusList($client, $account, $location);
         } catch (\Exception $e) {

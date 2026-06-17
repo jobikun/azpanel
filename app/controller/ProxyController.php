@@ -208,6 +208,95 @@ class ProxyController extends UserBase
         return self::createProxyUrlFromRecord($proxy);
     }
 
+    /**
+     * 根据账号记录解析其绑定的代理 URL。
+     * proxy_id 约定：0=不使用代理，-1=跟随默认代理，正数=具体 user_proxy.id
+     */
+    public static function getProxyUrlForAccount($account): ?string
+    {
+        $proxy_id = (int) ($account->proxy_id ?? 0);
+        $user_id = (int) ($account->user_id ?? session('user_id'));
+
+        if ($proxy_id === 0) {
+            return null; // 不使用代理
+        }
+
+        if ($proxy_id === -1) {
+            return self::getDefaultProxyUrl($user_id); // 跟随默认代理
+        }
+
+        $proxy = UserProxy::where('user_id', $user_id)
+            ->where('enabled', 1)
+            ->find($proxy_id);
+        if ($proxy === null) {
+            throw new \InvalidArgumentException('账号绑定的代理不存在或已被禁用');
+        }
+
+        return self::createProxyUrlFromRecord($proxy);
+    }
+
+    /**
+     * 账号绑定代理的可读标签（用于创建记录等展示）。
+     */
+    public static function getProxyLabelForAccount($account): string
+    {
+        $proxy_id = (int) ($account->proxy_id ?? 0);
+        $user_id = (int) ($account->user_id ?? session('user_id'));
+
+        if ($proxy_id === 0) {
+            return 'No proxy';
+        }
+
+        if ($proxy_id === -1) {
+            $proxy = self::getDefaultProxy($user_id);
+            return $proxy === null ? 'Default proxy pool (no available proxy)' : self::formatProxyLabel($proxy, 'Default proxy pool');
+        }
+
+        $proxy = UserProxy::where('user_id', $user_id)
+            ->where('enabled', 1)
+            ->find($proxy_id);
+
+        return $proxy === null ? ('Proxy #' . $proxy_id . ' (unavailable)') : self::formatProxyLabel($proxy, 'Proxy');
+    }
+
+    /**
+     * 提供给账号添加/编辑表单的代理下拉列表（当前用户启用的代理）。
+     */
+    public static function getProxyOptionsForUser(?int $user_id = null)
+    {
+        $user_id = $user_id ?? (int) session('user_id');
+        $proxies = UserProxy::where('user_id', $user_id)
+            ->where('enabled', 1)
+            ->order('id', 'desc')
+            ->select();
+
+        return self::normalizeProxyRecords($proxies);
+    }
+
+    /**
+     * 把表单提交的绑定代理值规范化为可落库的 proxy_id。
+     * 允许 0(不用) / -1(默认) / 归属当前用户且启用的具体代理 id；非法值按 0 处理。
+     */
+    public static function normalizeBoundProxyId($raw, ?int $user_id = null): int
+    {
+        $proxy_id = (int) $raw;
+        $user_id = $user_id ?? (int) session('user_id');
+
+        if ($proxy_id === 0 || $proxy_id === -1) {
+            return $proxy_id;
+        }
+
+        if ($proxy_id < 0) {
+            return 0;
+        }
+
+        $exists = UserProxy::where('user_id', $user_id)
+            ->where('enabled', 1)
+            ->find($proxy_id);
+
+        return $exists === null ? 0 : $proxy_id;
+    }
+
     public static function getProxyUrlFromInputOrDefault(?int $user_id = null): ?string
     {
         $proxy_mode = trim((string) input('proxy_mode/s', ''));

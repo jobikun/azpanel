@@ -52,6 +52,7 @@ class UserAws extends UserBase
         View::assign([
             'notes' => $notes,
             'regions' => AwsList::instanceRegion(),
+            'proxies' => ProxyController::getProxyOptionsForUser(),
         ]);
 
         return View::fetch('../app/view/user/aws/create.html');
@@ -129,7 +130,13 @@ class UserAws extends UserBase
         $batch_addition = trim(input('batch_addition/s', ''));
         $remark_filling = trim(input('remark_filling/s', 'input'));
 
+        $user_id = (int) session('user_id');
+        $proxy_id = ProxyController::normalizeBoundProxyId(input('proxy_id'), $user_id);
+
         try {
+            // 用绑定的代理来做创建时的配额检测，保证添加阶段就走指定代理
+            $proxy_url = ProxyController::getProxyUrlForAccount((object) ['proxy_id' => $proxy_id, 'user_id' => $user_id]);
+
             if ($add_mode === 'single') {
                 $batch_addition = $email . PHP_EOL . $passwd . PHP_EOL . $aws_ak . PHP_EOL . $aws_sk;
             }
@@ -161,7 +168,7 @@ class UserAws extends UserBase
 
                 foreach ($regions as $region) {
                     try {
-                        $quota[$region] = AwsApi::getQuota($region, $aws_ak, $aws_sk);
+                        $quota[$region] = AwsApi::getQuota($region, $aws_ak, $aws_sk, $proxy_url);
                     } catch (\Throwable $e) {
                         $quota[$region] = 'null';
                     }
@@ -177,6 +184,7 @@ class UserAws extends UserBase
                     'mark' => $remark_filling === 'input' ? $user_mark : $remark_filling,
                     'quota' => json_encode($quota, JSON_UNESCAPED_UNICODE),
                     'disable' => ($quota['ap-northeast-1'] ?? 'null') === 'null' ? 1 : 0,
+                    'proxy_id' => $proxy_id,
                     'user_id' => session('user_id'),
                     'created_at' => time(),
                 ];
@@ -219,7 +227,10 @@ class UserAws extends UserBase
             return View::fetch('../app/view/user/reject.html');
         }
 
-        View::assign('account', $account);
+        View::assign([
+            'account' => $account,
+            'proxies' => ProxyController::getProxyOptionsForUser(),
+        ]);
 
         return View::fetch('../app/view/user/aws/edit.html');
     }
@@ -239,9 +250,10 @@ class UserAws extends UserBase
 
                 $aws_account_quota = self::normalizeQuota($aws_account_quota);
 
+                $proxy_url = ProxyController::getProxyUrlForAccount($account);
                 foreach ($aws_account_quota as $key => $value) {
                     try {
-                        $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk);
+                        $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk, $proxy_url);
                     } catch (\Throwable $e) {
                         $quota[$key] = 'null';
                     }
@@ -271,9 +283,10 @@ class UserAws extends UserBase
                         $aws_account_quota = json_decode($account['quota'], true);
                         $aws_account_quota = self::normalizeQuota($aws_account_quota);
 
+                        $proxy_url = ProxyController::getProxyUrlForAccount($account);
                         foreach ($aws_account_quota as $key => $value) {
                             try {
-                                $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk);
+                                $quota[$key] = AwsApi::getQuota($key, $account->ak, $account->sk, $proxy_url);
                             } catch (\Throwable $e) {
                                 $quota[$key] = 'null';
                             }
@@ -300,6 +313,7 @@ class UserAws extends UserBase
             $account->mark = trim(input('mark/s', ''));
             $account->ak = trim(input('ak/s', ''));
             $account->sk = trim(input('sk/s', ''));
+            $account->proxy_id = ProxyController::normalizeBoundProxyId(input('proxy_id', $account->proxy_id), (int) $account->user_id);
 
             self::awsCertificateVerify([
                 $account->email,
