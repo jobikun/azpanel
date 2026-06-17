@@ -128,11 +128,11 @@ class AzureApi extends BaseController
         return json_decode($result->getBody(), true);
     }
 
-    public static function getAzureResourceGroup($account, $group_name)
+    public static function getAzureResourceGroup($account, $group_name, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/resources/resources/list-by-resource-group
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $account->az_sub_id . '/resourcegroups/' . $group_name . '/resources?' . self::apiVersion(self::RESOURCES_API_VERSION);
         $result = $client->get($url, [
             'headers' => self::getToken($account->id, false, $client),
@@ -308,21 +308,22 @@ class AzureApi extends BaseController
         ]);
     }
 
-    public static function deleteAzureResourcesGroup($account_id, $subscription_id, $resource_group_name)
+    public static function deleteAzureResourcesGroup($account_id, $subscription_id, $resource_group_name, ?Client $client = null)
     {
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com/subscriptions/' . $subscription_id . '/resourcegroups/' . $resource_group_name . '?' . self::apiVersion(self::RESOURCES_API_VERSION);
         $client->delete($url, [
-            'headers' => self::getToken($account_id),
+            'headers' => self::getToken($account_id, false, $client),
         ]);
     }
 
-    public static function deleteAzureResourcesGroupByUrl($url)
+    public static function deleteAzureResourcesGroupByUrl($url, ?Client $client = null)
     {
         $group_url = explode('/', $url);
         $account = Azure::where('az_sub_id', $group_url['2'])->find();
 
-        $client = ProxyController::createGuzzleClient();
+        // 默认按该资源组所属账号绑定的代理出网
+        $client = $client ?? ProxyController::createGuzzleClient(ProxyController::getProxyUrlForAccount($account), [], false);
         $url = 'https://management.azure.com' . $url . '?' . self::apiVersion(self::RESOURCES_API_VERSION);
         $client->delete($url, [
             'headers' => self::getToken($account->id, false, $client),
@@ -1039,7 +1040,7 @@ class AzureApi extends BaseController
         return $result->id;
     }
 
-    public static function getVirtualMachineStatistics($server, $start_time = null, $end_time = null)
+    public static function getVirtualMachineStatistics($server, $start_time = null, $end_time = null, ?Client $client = null)
     {
         // https://docs.microsoft.com/zh-cn/rest/api/monitor/metric-definitions/list
         // https://docs.microsoft.com/zh-cn/rest/api/monitor/metrics/list
@@ -1049,10 +1050,10 @@ class AzureApi extends BaseController
             $end_time = date('Y-m-d\T H:00:00\Z', time() - 25200);
         }
 
-        $client = ProxyController::createGuzzleClient();
+        $client = $client ?? ProxyController::createGuzzleClient();
         $url = 'https://management.azure.com' . $server->request_url . '/providers/Microsoft.Insights/metrics?api-version=2018-01-01&timespan=' . $start_time . '/' . $end_time . '&interval=PT1H&aggregation=total%2Caverage&metricnames=Percentage%20CPU%2CCPU%20Credits%20Remaining%2CAvailable%20Memory%20Bytes%2CNetwork%20In%20Total%2CNetwork%20Out%20Total';
         $result = $client->get($url, [
-            'headers' => self::getToken($server->account_id, true),
+            'headers' => self::getToken($server->account_id, true, $client),
         ]);
 
         return json_decode($result->getBody(), true); // array

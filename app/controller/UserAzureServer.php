@@ -31,11 +31,12 @@ class UserAzureServer extends UserBase
             // 刷新服务器状态
             if ($server->status === 'PowerState/starting' || $server->status === 'PowerState/stopping') {
                 try {
-                    $vm_status = AzureApi::getAzureVirtualMachineStatus($server->account_id, $server->request_url);
+                    $client = ProxyController::createGuzzleClient(self::proxyUrlForServer($server), [], false);
+                    $vm_status = AzureApi::getAzureVirtualMachineStatus($server->account_id, $server->request_url, $client);
                     $server->status = $vm_status['statuses']['1']['code'] ?? 'null';
                     $server->save();
                 } catch (\Exception $e) {
-                    // 页面渲染前无法读取下拉框代理，默认代理失败时不阻断列表页。
+                    // 账号绑定代理不可用时不阻断列表页渲染。
                 }
             }
 
@@ -609,7 +610,7 @@ class UserAzureServer extends UserBase
 
         if ($server->disk_details === null) {
             try {
-                $disk_response = AzureApi::getDisks($server);
+                $disk_response = AzureApi::getDisks($server, ProxyController::createGuzzleClient(self::proxyUrlForServer($server), [], false));
                 $server->disk_details = json_encode($disk_response);
                 $server->save();
             } catch (\Exception $e) {
@@ -677,7 +678,8 @@ class UserAzureServer extends UserBase
         $server = AzureServer::where('vm_id', $uuid)->find();
 
         try {
-            AzureApi::deleteAzureResourcesGroup($server->account_id, $server->at_subscription_id, $server->resource_group);
+            $client = ProxyController::createGuzzleClient(self::proxyUrlForServer($server), [], false);
+            AzureApi::deleteAzureResourcesGroup($server->account_id, $server->at_subscription_id, $server->resource_group, $client);
         } catch (\Exception $e) {
             return json(Tools::msg('0', '销毁失败', $e->getMessage()));
         }
@@ -1210,15 +1212,16 @@ class UserAzureServer extends UserBase
             return View::fetch('../app/view/user/reject.html');
         }
 
+        $client = ProxyController::createGuzzleClient(self::proxyUrlForServer($server), [], false);
         if ($gap === '') {
-            $statistics = AzureApi::getVirtualMachineStatistics($server);
+            $statistics = AzureApi::getVirtualMachineStatistics($server, null, null, $client);
         } else {
             $timestamp = strtotime(Carbon::parse("+{$gap} days ago")->toDateTimeString());
             $start_time = date('Y-m-d\T 16:00:00\Z', $timestamp);
             $stop_time = date('Y-m-d\T 16:00:00\Z', $timestamp + 86400);
             $chart_day = date('Y-m-d', $timestamp + 86400);
 
-            $statistics = AzureApi::getVirtualMachineStatistics($server, $start_time, $stop_time);
+            $statistics = AzureApi::getVirtualMachineStatistics($server, $start_time, $stop_time, $client);
         }
 
         //dump($statistics['value']);

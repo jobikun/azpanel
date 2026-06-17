@@ -506,12 +506,13 @@ class UserAzure extends UserBase
     {
         $time_set = [];
         $account = Azure::find($id);
+        $client = self::clientForAccount($account);
         $servers = AzureServer::where('account_id', $id)->select();
 
         foreach ($servers as $server) {
             if (!isset($server->disk_details)) {
                 try {
-                    $server->disk_details = json_encode(AzureApi::getDisks($server));
+                    $server->disk_details = json_encode(AzureApi::getDisks($server, $client));
                     $server->save();
                 } catch (\Exception $e) {
                     continue;
@@ -540,13 +541,14 @@ class UserAzure extends UserBase
             $cumulative_traffic_usage = 0;
             $cumulative_startup_time = 0;
             $sizes = AzureList::sizes();
+            $client = self::clientForAccount(Azure::find($id));
             $servers = AzureServer::where('user_id', session('user_id'))
                 ->where('account_id', $id)
                 ->select();
             foreach ($servers as $server) {
                 if (!isset($server->disk_details)) {
                     try {
-                        $server->disk_details = json_encode(AzureApi::getDisks($server));
+                        $server->disk_details = json_encode(AzureApi::getDisks($server, $client));
                         $server->save();
                     } catch (\Exception $e) {
                         $server->disk_details = null;
@@ -558,7 +560,7 @@ class UserAzure extends UserBase
                 $start_time = date('Y-m-d\T H:i:00\Z', $vm_disk_created - 28800);
                 $stop_time = date('Y-m-d\T H:i:00\Z', time() - 28800);
                 $cumulative_running_time = (time() - $vm_disk_created) / 2592000;
-                $statistics = AzureApi::getVirtualMachineStatistics($server, $start_time, $stop_time);
+                $statistics = AzureApi::getVirtualMachineStatistics($server, $start_time, $stop_time, $client);
                 foreach ($statistics['value'] as $key => $value) {
                     if ($value['name']['value'] === 'Network In Total') {
                         $network_in_total = $statistics['value'][$key]['timeseries']['0']['data'];
@@ -959,8 +961,9 @@ class UserAzure extends UserBase
         $count = 0;
         $ip_set = [];
         $server_id_set = [];
-        $resources = AzureApi::getAzureResourceGroupsList($id, $account->az_sub_id);
-        $virtual_machines = AzureApi::readAzureVirtualMachinesList($id, $account->az_sub_id);
+        $client = self::clientForAccount($account);
+        $resources = AzureApi::getAzureResourceGroupsList($id, $account->az_sub_id, $client);
+        $virtual_machines = AzureApi::readAzureVirtualMachinesList($id, $account->az_sub_id, $client);
         $server_ip_set = [];
         $servers = AzureServer::where('user_id', session('user_id'))
             ->where('account_id', $id)
@@ -977,7 +980,7 @@ class UserAzure extends UserBase
             $vm_id = $vm['properties']['vmId'];
             if (!isset($server_id_set[$vm_id])) {
                 $details = explode('/', $vm['properties']['networkProfile']['networkInterfaces']['0']['id']);
-                $network = AzureApi::getAzureNetworkInterfacesDetails($id, $details['8'], $details['4'], $details['2']);
+                $network = AzureApi::getAzureNetworkInterfacesDetails($id, $details['8'], $details['4'], $details['2'], $client);
                 $ip_set[$vm_id] = $network['properties']['ipConfigurations']['0']['properties']['publicIPAddress']['properties']['ipAddress'] ?? 'null';
                 $virtual_machines[$index]['panel_server_id'] = 0;
             } else {
@@ -1043,7 +1046,7 @@ class UserAzure extends UserBase
             return View::fetch('../app/view/user/reject.html');
         }
 
-        $groups = AzureApi::getAzureResourceGroup($account, $name);
+        $groups = AzureApi::getAzureResourceGroup($account, $name, self::clientForAccount($account));
 
         View::assign('groups', $groups);
         return View::fetch('../app/view/user/azure/groups.html');
@@ -1053,9 +1056,9 @@ class UserAzure extends UserBase
     {
         $account = Azure::find($id);
         $location = input('location');
+        $client = self::clientForAccount($account);
 
         if ($account->reg_capacity === 0) {
-            $client = ProxyController::createGuzzleClient();
             AzureApi::registerMainAzureProviders($client, $account, 'Microsoft.Capacity');
             $account->reg_capacity = 1;
             $account->save();
@@ -1063,7 +1066,7 @@ class UserAzure extends UserBase
 
         $data = [];
         $array = [];
-        $result = AzureApi::getQuota($account, $location);
+        $result = AzureApi::getQuota($account, $location, $client);
         foreach ($result['value'] as $item) {
             $array['note'] = $item['properties']['name']['localizedValue'];
             $array['name'] = $item['properties']['name']['value'];
