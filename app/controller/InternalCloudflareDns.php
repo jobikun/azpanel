@@ -723,11 +723,112 @@ class InternalCloudflareDns extends BaseController
         $proxy_url = ProxyController::getProxyUrlForAccount($account);
         $client = AwsApi::createAWSClient($region, $account->ak, $account->sk, $proxy_url !== null && $proxy_url !== '', 'ec2', $proxy_url);
 
+        $method = $this->normalizeChangeMethod((string) ($payload['method'] ?? $payload['ip_change_method'] ?? 'eip'));
+
+        if ($method === 'stop_start') {
+            if ($ip_version !== 'ipv4') {
+                throw new \InvalidArgumentException('stop_start method only changes the auto-assigned IPv4 address.');
+            }
+            return $this->changeAwsViaStopStart($client, $account_id, $region, $instance_id);
+        }
+
         if ($ip_version === 'ipv6') {
             return $this->changeAwsIpv6($client, $account_id, $region, $instance_id);
         }
 
         return $this->changeAwsIpv4($client, $account_id, $region, $instance_id);
+    }
+
+    private function normalizeChangeMethod(string $value): string
+    {
+        $value = str_replace('-', '_', strtolower(trim($value)));
+        if ($value === '' || $value === 'eip' || $value === 'elastic_ip' || $value === 'allocate') {
+            return 'eip';
+        }
+        if ($value === 'stop_start' || $value === 'stopstart') {
+            return 'stop_start';
+        }
+
+        throw new \InvalidArgumentException('Unsupported change method: ' . $value);
+    }
+
+    /**
+     * 通过 stop -> start 让实例重新获取一个新的自动分配公网 IPv4。
+     * 不消耗 EIP 配额，但实例会有 1~2 分钟停机；仅适用于使用自动公网 IP 的实例。
+     * reboot（软重启）不会换 IP，必须真正 stop 后再 start。
+     */
+    private function changeAwsViaStopStart(object $client, int $account_id, string $region, string $instance_id): array
+    {
+        @set_time_limit(300);
+
+        $instance = $this->describeAwsInstance($client, $instance_id);
+        if (! empty($instance['NetworkInterfaces'][0]['Association']['AllocationId'])) {
+            throw new \RuntimeException('Instance has an Elastic IP attached; stop/start will not change its public IP. Use the EIP method or disassociate the EIP first.');
+        }
+
+        $old_public_ip = self::awsInstancePublicIpv4($instance);
+
+        $client->stopInstances(['InstanceIds' => [$instance_id]]);
+        $this->waitForAwsInstanceState($client, $instance_id, 'stopped', 180);
+
+        $client->startInstances(['InstanceIds' => [$instance_id]]);
+        $this->waitForAwsInstanceState($client, $instance_id, 'running', 180);
+
+        $instance = $this->describeAwsInstance($client, $instance_id);
+        $new_public_ip = self::awsInstancePublicIpv4($instance);
+        if ($new_public_ip === '') {
+            throw new \RuntimeException('Instance has no public IPv4 after restart; the subnet may have auto-assign public IP disabled.');
+        }
+
+        self::cacheChangedAwsInstance($account_id, $region, $instance, 'ipv4', $new_public_ip);
+
+        return [
+            'provider' => 'aws',
+            'resource_id' => $instance_id,
+            'account_id' => (string) $account_id,
+            'region' => $region,
+            'ip_version' => 'ipv4',
+            'old_ip' => $old_public_ip === '' ? 'null' : $old_public_ip,
+            'new_ip' => $new_public_ip,
+            'method' => 'stop_start',
+        ];
+    }
+
+    private function describeAwsInstance(object $client, string $instance_id): array
+    {
+        $result = $client->describeInstances([
+            'Filters' => [[
+                'Name' => 'instance-id',
+                'Values' => [$instance_id],
+            ]],
+        ]);
+        $instance = $result['Reservations'][0]['Instances'][0] ?? null;
+        if ($instance === null) {
+            throw new \RuntimeException('AWS instance not found: ' . $instance_id);
+        }
+
+        return $instance;
+    }
+
+    private function waitForAwsInstanceState(object $client, string $instance_id, string $target_state, int $timeout_seconds = 180): void
+    {
+        $deadline = time() + $timeout_seconds;
+        while (true) {
+            $result = $client->describeInstances([
+                'Filters' => [[
+                    'Name' => 'instance-id',
+                    'Values' => [$instance_id],
+                ]],
+            ]);
+            $state = (string) ($result['Reservations'][0]['Instances'][0]['State']['Name'] ?? '');
+            if ($state === $target_state) {
+                return;
+            }
+            if (time() >= $deadline) {
+                throw new \RuntimeException('Timed out waiting for AWS instance ' . $instance_id . ' to reach "' . $target_state . '" (current: ' . ($state === '' ? 'unknown' : $state) . ').');
+            }
+            sleep(3);
+        }
     }
 
     private function changeAwsIpv4(object $client, int $account_id, string $region, string $instance_id): array
