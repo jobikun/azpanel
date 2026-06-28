@@ -766,7 +766,16 @@ class InternalCloudflareDns extends BaseController
             ]);
         }
 
-        [$new_public_ip, $new_allocation_id] = AwsApi::allocateAddress($client);
+        try {
+            [$new_public_ip, $new_allocation_id] = AwsApi::allocateAddress($client);
+        } catch (\Aws\Exception\AwsException $e) {
+            // 配额已满：自动释放本区域未关联的孤儿 EIP 后重试一次
+            if ($e->getAwsErrorCode() !== 'AddressLimitExceeded'
+                || AwsApi::releaseUnassociatedAddresses($client) <= 0) {
+                throw $e;
+            }
+            [$new_public_ip, $new_allocation_id] = AwsApi::allocateAddress($client);
+        }
         // 绑定新弹性 IP，失败则释放刚申请的 IP，避免僵尸 EIP 占满配额
         try {
             $client->associateAddress([

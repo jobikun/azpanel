@@ -233,6 +233,44 @@ class AwsApi extends BaseController
         ];
     }
 
+    /**
+     * 释放本账号在当前区域内未关联到任何实例/网卡的孤儿 EIP。
+     * 用于换 IP 撞到 AddressLimitExceeded 时自动清理历史残留、腾出配额。
+     * 只释放 AssociationId / InstanceId 均为空的 EIP，避免误删正在使用的地址。
+     *
+     * @param string|null $keep_allocation_id 跳过该 AllocationId（用于保护刚申请、尚未绑定的地址）
+     * @return int 实际释放的孤儿 EIP 数量
+     */
+    public static function releaseUnassociatedAddresses(object $session, ?string $keep_allocation_id = null): int
+    {
+        $result = $session->describeAddresses();
+        if (is_object($result) && method_exists($result, 'toArray')) {
+            $result = $result->toArray();
+        }
+
+        $released = 0;
+        foreach (($result['Addresses'] ?? []) as $address) {
+            if (! empty($address['AssociationId']) || ! empty($address['InstanceId'])) {
+                continue;
+            }
+            $allocation_id = (string) ($address['AllocationId'] ?? '');
+            if ($allocation_id === '') {
+                continue;
+            }
+            if ($keep_allocation_id !== null && $allocation_id === $keep_allocation_id) {
+                continue;
+            }
+            try {
+                $session->releaseAddress(['AllocationId' => $allocation_id]);
+                $released++;
+            } catch (\Exception $e) {
+                // 单个释放失败不影响其余清理
+            }
+        }
+
+        return $released;
+    }
+
     public static function waitForInstanceToRun(object $session, string $InstanceId): void
     {
         while (true) {
