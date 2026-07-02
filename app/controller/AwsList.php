@@ -7,9 +7,17 @@ class AwsList
     public static function instanceSizes()
     {
         return [
+            // 免费套餐资格机型（2025-07-15 后注册的新账号只能创建这些，其他机型会报
+            // "not eligible for Free Tier"；升级为付费计划后不受限制）
+            't3.micro' => '2 vCPU, 1 GiB 内存【免费套餐】',
+            't3.small' => '2 vCPU, 2 GiB 内存【免费套餐】',
+            't4g.micro' => '2 vCPU, 1 GiB 内存【免费套餐 ARM】',
+            't4g.small' => '2 vCPU, 2 GiB 内存【免费套餐 ARM】',
+            'c7i-flex.large' => '2 vCPU, 4 GiB 内存【免费套餐】',
+            'm7i-flex.large' => '2 vCPU, 8 GiB 内存【免费套餐】',
             // T2 系列 (burstable, x86)
             't2.nano' => '1 vCPU, 0.5 GiB 内存',
-            't2.micro' => '1 vCPU, 1 GiB 内存',
+            't2.micro' => '1 vCPU, 1 GiB 内存【旧账号免费套餐】',
             't2.small' => '1 vCPU, 2 GiB 内存',
             't2.medium' => '2 vCPU, 4 GiB 内存',
             't2.large' => '2 vCPU, 8 GiB 内存',
@@ -17,8 +25,6 @@ class AwsList
             't2.2xlarge' => '8 vCPU, 32 GiB 内存',
             // T3 系列 (burstable, x86)
             't3.nano' => '2 vCPU, 0.5 GiB 内存',
-            't3.micro' => '2 vCPU, 1 GiB 内存',
-            't3.small' => '2 vCPU, 2 GiB 内存',
             't3.medium' => '2 vCPU, 4 GiB 内存',
             't3.large' => '2 vCPU, 8 GiB 内存',
             't3.xlarge' => '4 vCPU, 16 GiB 内存',
@@ -33,8 +39,6 @@ class AwsList
             't3a.2xlarge' => '8 vCPU, 32 GiB 内存',
             // T4g 系列 (burstable, ARM Graviton2)
             't4g.nano' => '2 vCPU, 0.5 GiB 内存',
-            't4g.micro' => '2 vCPU, 1 GiB 内存',
-            't4g.small' => '2 vCPU, 2 GiB 内存',
             't4g.medium' => '2 vCPU, 4 GiB 内存',
             't4g.large' => '2 vCPU, 8 GiB 内存',
             't4g.xlarge' => '4 vCPU, 16 GiB 内存',
@@ -112,26 +116,33 @@ class AwsList
 
     public static function instanceImage()
     {
+        // imageName 为 x86(amd64) 机型使用的 AMI，imageNameArm 为 t4g/c7g/m7g 等
+        // ARM(Graviton) 机型使用的 AMI；没有 imageNameArm 的镜像不支持 ARM 机型
         return [
             'debian-11' => [
                 'imageOwner' => '136693071363',
                 'imageName' => 'debian-11-amd64-*',
+                'imageNameArm' => 'debian-11-arm64-*',
             ],
             'debian-12' => [
                 'imageOwner' => '136693071363',
                 'imageName' => 'debian-12-amd64-*',
+                'imageNameArm' => 'debian-12-arm64-*',
             ],
             'ubuntu-22.04' => [
                 'imageOwner' => '099720109477',
                 'imageName' => 'ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*',
+                'imageNameArm' => 'ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-*',
             ],
             'ubuntu-24.04' => [
                 'imageOwner' => '099720109477',
                 'imageName' => 'ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*',
+                'imageNameArm' => 'ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-*',
             ],
             'al2023' => [
                 'imageOwner' => '137112412989',
                 'imageName' => 'al2023-ami-*-kernel-*-x86_64',
+                'imageNameArm' => 'al2023-ami-*-kernel-*-arm64',
             ],
             'Windows_Server_2022' => [
                 'imageOwner' => '801119661308',
@@ -142,5 +153,15 @@ class AwsList
                 'imageName' => 'Windows_Server-2025-English-Full-Base-*',
             ],
         ];
+    }
+
+    /**
+     * 判断机型是否为 ARM(Graviton) 架构，如 t4g / c7g / m7g / c7gn / r8g 等。
+     */
+    public static function isArmInstanceType(string $size): bool
+    {
+        $family = explode('.', $size)[0];
+
+        return (bool) preg_match('/\d+g/', $family);
     }
 }

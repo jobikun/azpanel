@@ -288,12 +288,21 @@ class UserAwsServer extends UserBase
                     throw new \RuntimeException('Invalid AWS image selected: ' . $vm_image);
                 }
 
+                $size = $specified_size === '' ? $vm_size : $specified_size;
+                $image_name = $images[$vm_image]['imageName'];
+                if (AwsList::isArmInstanceType($size)) {
+                    if (empty($images[$vm_image]['imageNameArm'])) {
+                        throw new \RuntimeException('镜像 ' . $vm_image . ' 没有 ARM 架构版本，无法用于 ' . $size . ' (ARM/Graviton) 机型，请更换 x86 机型或其他镜像');
+                    }
+                    $image_name = $images[$vm_image]['imageNameArm'];
+                }
+
                 $controller_params = [
                     'name' => $name,
                     'disk_size' => $vm_disk_size,
-                    'size' => $specified_size === '' ? $vm_size : $specified_size,
+                    'size' => $size,
                     'userDataRaw' => $this->generateScriptContent($vm_name, $vm_passwd, $vm_script),
-                    'imageName' => $images[$vm_image]['imageName'],
+                    'imageName' => $image_name,
                     'imageOwner' => $images[$vm_image]['imageOwner'],
                     'IpPermissions' => $this->getIpPermissions(),
                 ];
