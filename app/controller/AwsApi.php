@@ -97,6 +97,45 @@ class AwsApi extends BaseController
         return $client;
     }
 
+    /**
+     * Account API（管理区域开通状态）为全局服务，固定走 us-east-1 端点。
+     */
+    public static function createAccountClient(string $access_key, string $secret_key, ?string $proxy_url = null): \Aws\Account\AccountClient
+    {
+        $request_params = [
+            'region' => 'us-east-1',
+            'version' => 'latest',
+            'credentials' => [
+                'key' => $access_key,
+                'secret' => $secret_key,
+            ],
+        ];
+        if ($proxy_url !== null) {
+            $request_params['http'] = ProxyController::createAwsHttpOptions($proxy_url);
+        }
+
+        return new \Aws\Account\AccountClient($request_params);
+    }
+
+    /**
+     * @return string ENABLED / ENABLED_BY_DEFAULT / DISABLED / ENABLING / DISABLING
+     */
+    public static function getRegionOptStatus(object $client, string $region): string
+    {
+        $result = $client->getRegionOptStatus([
+            'RegionName' => $region,
+        ]);
+
+        return (string) $result['RegionOptStatus'];
+    }
+
+    public static function enableRegion(object $client, string $region): void
+    {
+        $client->enableRegion([
+            'RegionName' => $region,
+        ]);
+    }
+
     public static function getRegionQuota(object $session, string $region)
     {
         $result = $session->getServiceQuota([

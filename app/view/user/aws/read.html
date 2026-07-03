@@ -9,7 +9,7 @@
             </div>
 
             <div class="mdui-typo">
-                <p>你可以在这里查看此账户每个区域的配额</p>
+                <p>你可以在这里查看此账户每个区域的配额。带「默认禁用」标记的区域需要先申请开通后才能使用，开通通常在几分钟内生效</p>
             </div>
 
             <div class="card-body mdui-table-fluid-fixed mdui-m-t-2">
@@ -26,13 +26,30 @@
                         {volist name="locations" id="location"}
                         <tr>
                             <td>{++$count}</td>
-                            <td>{$location}</td>
-                            <td>null</td>
                             <td>
+                                {$location}
+                                {if in_array($key, $opt_in_regions)}
+                                <span
+                                    class="mdui-text-color-orange-900"
+                                    style="font-size: 12px; white-space: nowrap;">默认禁用</span>
+                                {/if}
+                            </td>
+                            <td>null</td>
+                            <td style="white-space: nowrap;">
                                 <button data-region="{$key}" data-line="{$count}"
                                     class="query-quota mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
                                     查看
                                 </button>
+                                {if in_array($key, $opt_in_regions)}
+                                <button data-region="{$key}"
+                                    class="query-region-status mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+                                    状态
+                                </button>
+                                <button data-region="{$key}" data-location="{$location}"
+                                    class="enable-region mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-orange-900">
+                                    申请开通
+                                </button>
+                                {/if}
                             </td>
                         </tr>
                         {/volist}
@@ -74,6 +91,60 @@
                 });
             },
         });
+    });
+
+    $('.query-region-status').click(function () {
+        var region = $(this).data('region');
+        var load = mdui.snackbar({
+            message: '正在查询区域状态…',
+            position: 'top',
+            timeout: 0,
+        });
+        $.ajax({
+            method: 'GET',
+            url: "/user/aws/{$account.id}",
+            data: {
+                action: 'regionStatus',
+                region: region,
+            },
+            dataType: "json",
+            success: function (data) {
+                load.close();
+                mdui.alert(region + '：' + data.content, data.title);
+            },
+        });
+    });
+
+    $('.enable-region').click(function () {
+        var region = $(this).data('region');
+        var location = $(this).data('location');
+        mdui.confirm('将为该账户申请开通区域 ' + location + '（' + region + '），开通后账户可能产生相关资源费用', '开通确认',
+            function () {
+                var load = mdui.snackbar({
+                    message: '正在提交开通申请…',
+                    position: 'top',
+                    timeout: 0,
+                });
+                $.ajax({
+                    method: 'GET',
+                    url: "/user/aws/{$account.id}",
+                    data: {
+                        action: 'enableRegion',
+                        region: region,
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        load.close();
+                        mdui.alert(data.content, data.title);
+                    },
+                });
+            },
+            function () { },
+            {
+                confirmText: "确定",
+                cancelText: "取消",
+            }
+        );
     });
 
     document.querySelectorAll('td').forEach(function (td) {

@@ -156,6 +156,33 @@ class AwsList
     }
 
     /**
+     * 默认禁用（opt-in）的区域，需要先在账户层面申请开通才能使用。
+     * 参考：https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-regions.html
+     */
+    public static function optInRegions(): array
+    {
+        return [
+            'af-south-1',
+            'ap-east-1',
+            'ap-east-2',
+            'ap-south-2',
+            'ap-southeast-3',
+            'ap-southeast-4',
+            'ap-southeast-5',
+            'ap-southeast-6',
+            'ap-southeast-7',
+            'ca-west-1',
+            'eu-central-2',
+            'eu-south-1',
+            'eu-south-2',
+            'il-central-1',
+            'me-central-1',
+            'me-south-1',
+            'mx-central-1',
+        ];
+    }
+
+    /**
      * 判断机型是否为 ARM(Graviton) 架构，如 t4g / c7g / m7g / c7gn / r8g 等。
      */
     public static function isArmInstanceType(string $size): bool

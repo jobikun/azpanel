@@ -210,13 +210,71 @@ class UserAws extends UserBase
             return json(AwsApi::getQuota(input('region/s'), $account->ak, $account->sk));
         }
 
+        if (input('action/s') === 'regionStatus') {
+            try {
+                $proxy_url = ProxyController::getProxyUrlForAccount($account);
+                $client = AwsApi::createAccountClient($account->ak, $account->sk, $proxy_url);
+                $status = AwsApi::getRegionOptStatus($client, input('region/s'));
+
+                return json(Tools::msg('1', '区域状态', self::translateRegionOptStatus($status)));
+            } catch (\Throwable $e) {
+                return json(Tools::msg('0', '查询失败', $e->getMessage()));
+            }
+        }
+
+        if (input('action/s') === 'enableRegion') {
+            try {
+                $region = input('region/s');
+
+                if (!in_array($region, AwsList::optInRegions(), true)) {
+                    throw new \Exception("该区域无需申请开通");
+                }
+
+                $proxy_url = ProxyController::getProxyUrlForAccount($account);
+                $client = AwsApi::createAccountClient($account->ak, $account->sk, $proxy_url);
+                $status = AwsApi::getRegionOptStatus($client, $region);
+
+                if ($status === 'ENABLED' || $status === 'ENABLED_BY_DEFAULT') {
+                    return json(Tools::msg('1', '开通结果', '该区域已开通，无需重复申请'));
+                }
+
+                if ($status === 'ENABLING') {
+                    return json(Tools::msg('1', '开通结果', '该区域正在开通中，请耐心等待生效'));
+                }
+
+                if ($status === 'DISABLING') {
+                    return json(Tools::msg('0', '开通失败', '该区域正在停用中，请等待停用完成后再申请'));
+                }
+
+                AwsApi::enableRegion($client, $region);
+
+                return json(Tools::msg('1', '开通结果', '已提交开通申请，通常几分钟内生效，可通过「状态」按钮查询进度'));
+            } catch (\Throwable $e) {
+                return json(Tools::msg('0', '开通失败', $e->getMessage()));
+            }
+        }
+
         View::assign([
             'count' => 0,
             'account' => $account,
             'locations' => AwsList::instanceRegion(),
+            'opt_in_regions' => AwsList::optInRegions(),
         ]);
 
         return View::fetch('../app/view/user/aws/read.html');
+    }
+
+    private static function translateRegionOptStatus(string $status): string
+    {
+        $map = [
+            'ENABLED' => '已开通',
+            'ENABLED_BY_DEFAULT' => '默认开通',
+            'DISABLED' => '未开通',
+            'ENABLING' => '开通中',
+            'DISABLING' => '停用中',
+        ];
+
+        return $map[$status] ?? $status;
     }
 
     public function edit($id)
