@@ -242,10 +242,16 @@ class UserAwsServer extends UserBase
         if (Str::contains($vm_script, '#!/bin/bash') || Str::contains($vm_script, '#!/bin/sh')) {
             return json(Tools::msg('0', '创建失败', '自定义脚本不需要以 #!/bin/bash 或 #!/bin/sh 开头，因为已经包含。可直接输入需要执行的代码。注意：部分命令可能需要 sudo'));
         }
-        // 检查区域权限
+        // 解析创建使用的代理：默认(account/未传)跟随账号绑定，页面显式选择其他来源时以选择为准
         try {
-            $proxy_url = ProxyController::getProxyUrlForAccount($account);
-            $proxy_label = ProxyController::getProxyLabelForAccount($account);
+            $proxy_mode = trim((string) input('proxy_mode/s', ''));
+            if ($proxy_mode === '' || $proxy_mode === 'account') {
+                $proxy_url = ProxyController::getProxyUrlForAccount($account);
+                $proxy_label = ProxyController::getProxyLabelForAccount($account);
+            } else {
+                $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+                $proxy_label = ProxyController::getProxyLabelFromInput();
+            }
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', $e->getMessage()));
         }

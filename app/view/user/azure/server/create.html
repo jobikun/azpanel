@@ -117,7 +117,7 @@
                         <div class="mdui-m-t-2">
                             归属：<select id="vm_account" class="mdui-select" mdui-select>
                                 {volist name="accounts" id="account"}
-                                <option value="{$account->id}">{$account->az_email}</option>
+                                <option value="{$account->id}" data-proxy-id="{$account->proxy_id}">{$account->az_email}</option>
                                 {/volist}
                             </select>
                         </div>
@@ -131,7 +131,7 @@
                         <div class="mdui-m-t-2">
                             归属：
                             <select id="vm_account" class="mdui-select" mdui-select>
-                                <option value="{$designated_account->id}">{$designated_account->az_email}</option>
+                                <option value="{$designated_account->id}" data-proxy-id="{$designated_account->proxy_id}">{$designated_account->az_email}</option>
                             </select>
                         </div>
                         {/if}
@@ -212,6 +212,7 @@
                                 <div class="mdui-col-sm-12 mdui-col-md-12">
                                     <div class="mdui-m-t-2">
                                         代理来源：<select id="proxy_mode" style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
+                                            <option value="account" selected>跟随账号绑定代理（默认）</option>
                                             <option value="none">不使用代理</option>
                                             <option value="default">使用默认代理池</option>
                                             {volist name="proxies" id="proxy"}
@@ -342,28 +343,51 @@
         if ($("#socks5_switch").prop("checked")) {
             $('#proxy_mode').val('manual');
         } else if ($('#proxy_mode').val() === 'manual') {
-            $('#proxy_mode').val('none');
+            $('#proxy_mode').val('account');
         }
         applyProxyMode();
         scheduleAutoLoadAvailableModels();
     });
 
-    function proxyRequestData(extra) {
-        var mode = $('#proxy_mode').val() || 'none';
+    function getAccountBoundProxyId() {
+        var option = $('#vm_account option:selected');
+        if (option.length === 0) {
+            option = $('#vm_account option').first();
+        }
+        return parseInt(option.attr('data-proxy-id') || '0', 10) || 0;
+    }
+
+    // 把 account（跟随账号绑定）解析为实际代理来源：0=none，-1=default，正数=pool:ID
+    function resolveEffectiveProxyMode(mode) {
+        if (mode !== 'account') {
+            return mode;
+        }
+        var proxyId = getAccountBoundProxyId();
+        if (proxyId === -1) {
+            return 'default';
+        }
+        return proxyId > 0 ? 'pool:' + proxyId : 'none';
+    }
+
+    // keepRawMode=true 时保留 account 原值提交（创建接口由后端按账号绑定解析）
+    function proxyRequestData(extra, keepRawMode) {
+        var raw = $('#proxy_mode').val() || 'none';
+        var mode = resolveEffectiveProxyMode(raw);
         var data = extra || {};
-        data.proxy_mode = mode;
+        data.proxy_mode = keepRawMode ? raw : mode;
         data.proxy_protocol = $('#proxy_protocol').val() || 'socks5';
         data.proxy_id = mode.indexOf('pool:') === 0 ? mode.replace('pool:', '') : 0;
         return data;
     }
 
     function getPoolOptionForMode(mode) {
+        mode = resolveEffectiveProxyMode(mode);
         if (mode === 'default') {
             var defaultOption = $('#proxy_mode option[data-default="1"]').first();
             return defaultOption.length > 0 ? defaultOption : $('#proxy_mode option[value^="pool:"]').first();
         }
         if (mode.indexOf('pool:') === 0) {
-            return $('#proxy_mode option:selected');
+            return $('#proxy_mode option[value="' + mode + '"]').first();
         }
         return $();
     }
@@ -394,7 +418,7 @@
     }
 
     function applyProxyMode() {
-        var mode = $('#proxy_mode').val() || 'none';
+        var mode = resolveEffectiveProxyMode($('#proxy_mode').val() || 'none');
         var manual = mode === 'manual';
 
         $('#socks5_switch').prop('checked', manual);
@@ -420,9 +444,12 @@
     }
 
     function currentProxySummary() {
-        var mode = $('#proxy_mode').val() || 'none';
+        var raw = $('#proxy_mode').val() || 'none';
+        var mode = resolveEffectiveProxyMode(raw);
+        var prefix = raw === 'account' ? '跟随账号绑定 - ' : '';
+
         if (mode === 'none') {
-            return 'No proxy';
+            return prefix + 'No proxy';
         }
 
         if (mode === 'manual') {
@@ -434,10 +461,14 @@
 
         var option = getPoolOptionForMode(mode);
         if (option.length > 0) {
-            return optionDisplayText(option) || 'Selected proxy pool';
+            return prefix + (optionDisplayText(option) || 'Selected proxy pool');
         }
 
-        return mode === 'default' ? 'Default proxy pool (no available proxy)' : 'No proxy';
+        if (mode.indexOf('pool:') === 0) {
+            return prefix + '绑定代理 #' + mode.replace('pool:', '') + ' 不可用（已禁用或删除）';
+        }
+
+        return mode === 'default' ? prefix + 'Default proxy pool (no available proxy)' : prefix + 'No proxy';
     }
 
     function safeProxySummary() {
@@ -658,6 +689,7 @@
     });
 
     $('#vm_location, #vm_account').on('change', function () {
+        applyProxyMode();
         scheduleAutoLoadAvailableModels();
     });
 
@@ -804,7 +836,7 @@
                         nyanpass_url: nyanpassUrl,
                         nyanpass_token: nyanpassToken,
                         task_uuid: uuid,
-                    }),
+                    }, true),
                     dataType: "json",
                     success: function (data) {
                         load.close();

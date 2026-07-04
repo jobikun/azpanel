@@ -289,10 +289,16 @@ class UserAzureServer extends UserBase
         return json(Tools::msg('0', '创建失败', '维护中'));
         } */
 
-        // 创建http会话
+        // 创建http会话：默认(account/未传)跟随账号绑定代理，页面显式选择其他来源时以选择为准
         try {
-            $proxy_url = ProxyController::getProxyUrlForAccount($account);
-            $proxy_label = ProxyController::getProxyLabelForAccount($account);
+            $proxy_mode = trim((string) input('proxy_mode/s', ''));
+            if ($proxy_mode === '' || $proxy_mode === 'account') {
+                $proxy_url = ProxyController::getProxyUrlForAccount($account);
+                $proxy_label = ProxyController::getProxyLabelForAccount($account);
+            } else {
+                $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
+                $proxy_label = ProxyController::getProxyLabelFromInput();
+            }
             $client = ProxyController::createGuzzleClient($proxy_url, [], false);
         } catch (\Exception $e) {
             return json(Tools::msg('0', '创建失败', self::exceptionMessage($e)));
