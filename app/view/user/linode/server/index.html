@@ -30,14 +30,8 @@
             </div>
         </div>
         <div class="mdui-col-sm-12 mdui-col-md-4">
-            <div class="mdui-m-t-2">
-                代理来源：<select id="proxy_mode" style="height:36px;min-width:260px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
-                    <option value="none">不使用代理</option>
-                    <option value="default">使用默认代理池</option>
-                    {volist name="proxies" id="proxy"}
-                    <option value="pool:{$proxy.id}">{$proxy.name} - [{:strtoupper($proxy.protocol)}{if $proxy.source_type == 'api'} API{/if}] {if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}{if $proxy.is_default == 1}（默认）{/if}</option>
-                    {/volist}
-                </select>
+            <div class="mdui-m-t-2" style="color:#757575;line-height:36px;">
+                所有请求均使用账户绑定的代理（可在账户列表页换绑）
             </div>
         </div>
     </div>
@@ -86,11 +80,8 @@
     }
 
     function proxyRequestData(extra) {
-        var mode = $('#proxy_mode').val() || 'none';
-        var data = extra || {};
-        data.proxy_mode = mode;
-        data.proxy_id = mode.indexOf('pool:') === 0 ? mode.replace('pool:', '') : 0;
-        return data;
+        // 代理由账户绑定决定，不再随请求提交
+        return extra || {};
     }
 
     function renderRows(data) {

@@ -25,12 +25,40 @@ class ProxyController extends UserBase
         return strtolower(trim($source_type)) === 'api' ? 'api' : 'manual';
     }
 
+    /**
+     * 解析一行导入文本为代理数组，返回 null 表示无法解析。
+     * 支持：完整 curl 命令（--proxy / -x）、scheme://user:pass@host:port、
+     * user:pass@host:port、host:port:user:pass、host:port。
+     */
+    public static function parseProxyImportLine(string $line, string $default_protocol = 'http'): ?array
+    {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') {
+            return null;
+        }
+
+        // 粘贴自富文本的 markdown 链接 [text](url) → 取链接目标
+        while (preg_match('/\[([^\[\]]*)\]\(([^()\s]+)\)/', $line, $matches)) {
+            $line = str_replace($matches[0], $matches[2], $line);
+        }
+
+        // curl 命令：提取 --proxy / -x 参数，忽略命令中的目标 URL
+        if (preg_match('/(?:^|\s)(?:--proxy(?![\w-])|-x)[= ]+("[^"]*"|\'[^\']*\'|\S+)/', $line, $matches)) {
+            $line = trim($matches[1], "\"'");
+        } elseif (preg_match('/^curl\s/i', $line)) {
+            return null; // 是 curl 命令但没有代理参数
+        }
+
+        return self::parseProxyEndpoint($line, $default_protocol);
+    }
+
     public static function normalizeProxyRecords($proxies)
     {
         foreach ($proxies as $proxy) {
             $proxy->protocol = self::normalizeProxyProtocol((string) ($proxy->protocol ?? 'socks5'));
             $proxy->source_type = self::normalizeProxySourceType((string) ($proxy->source_type ?? 'manual'));
             $proxy->api_url = (string) ($proxy->api_url ?? '');
+            $proxy->api_key = (string) ($proxy->api_key ?? '');
         }
 
         return $proxies;
@@ -122,7 +150,8 @@ class ProxyController extends UserBase
         if (self::normalizeProxySourceType((string) ($proxy->source_type ?? 'manual')) === 'api') {
             $api_proxy = self::fetchProxyFromApi(
                 (string) ($proxy->api_url ?? ''),
-                (string) ($proxy->protocol ?? 'socks5')
+                (string) ($proxy->protocol ?? 'socks5'),
+                (string) ($proxy->api_key ?? '')
             );
 
             return self::createProxyUrl(
@@ -297,6 +326,29 @@ class ProxyController extends UserBase
         return $exists === null ? 0 : $proxy_id;
     }
 
+    /**
+     * 把表单的 proxy_mode(none/default/pool:ID) + proxy_id 映射为账号绑定 proxy_id。
+     * 约定：0=不使用代理，-1=跟随默认代理，正数=具体 user_proxy.id
+     */
+    public static function resolveBoundProxyIdFromInput(?int $user_id = null): int
+    {
+        $proxy_mode = trim((string) input('proxy_mode/s', ''));
+        $proxy_id = (int) input('proxy_id/d', 0);
+        $user_id = $user_id ?? (int) session('user_id');
+
+        if ($proxy_mode === 'default' || ($proxy_mode === '' && $proxy_id === -1)) {
+            return -1;
+        }
+        if ($proxy_mode === 'none' || ($proxy_mode === '' && $proxy_id <= 0)) {
+            return 0;
+        }
+        if ($proxy_id <= 0 && str_starts_with($proxy_mode, 'pool:')) {
+            $proxy_id = (int) substr($proxy_mode, 5);
+        }
+
+        return self::normalizeBoundProxyId($proxy_id, $user_id);
+    }
+
     public static function getProxyUrlFromInputOrDefault(?int $user_id = null): ?string
     {
         $proxy_mode = trim((string) input('proxy_mode/s', ''));
@@ -365,21 +417,37 @@ class ProxyController extends UserBase
         return new Client(array_replace_recursive(self::createGuzzleOptions($proxy_url), $options));
     }
 
-    public static function fetchProxyFromApi(string $api_url, string $default_protocol = 'socks5'): array
+    // Webshare 代理列表接口（https://apidocs.webshare.io/）
+    public const WEBSHARE_LIST_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=100';
+
+    public static function fetchProxyFromApi(string $api_url, string $default_protocol = 'socks5', string $api_key = ''): array
     {
         $api_url = trim($api_url);
+        $api_key = trim($api_key);
+        if ($api_url === '' && $api_key !== '') {
+            $api_url = self::WEBSHARE_LIST_URL; // 仅填 API Key 时默认使用 Webshare 列表接口
+        }
         if (!filter_var($api_url, FILTER_VALIDATE_URL) || !preg_match('/^https?:\/\//i', $api_url)) {
             throw new \InvalidArgumentException('代理 API URL 必须是 http 或 https 地址');
         }
 
-        $client = new Client([
+        $options = [
             'timeout' => 15,
             'connect_timeout' => 8,
             'http_errors' => false,
-        ]);
+        ];
+        if ($api_key !== '') {
+            // Webshare 等使用 Token 鉴权的服务
+            $options['headers'] = ['Authorization' => 'Token ' . $api_key];
+        }
+
+        $client = new Client($options);
         $response = $client->request('GET', $api_url);
         $status = (int) $response->getStatusCode();
         $body = trim((string) $response->getBody());
+        if ($status === 401 || $status === 403) {
+            throw new \RuntimeException('代理 API 鉴权失败（HTTP ' . $status . '），请检查 API Key 是否正确');
+        }
         if ($status < 200 || $status >= 300) {
             throw new \RuntimeException('代理 API 请求失败，HTTP ' . $status);
         }
@@ -393,6 +461,66 @@ class ProxyController extends UserBase
         }
 
         throw new \RuntimeException('代理 API 没有返回可解析的代理地址');
+    }
+
+    /**
+     * 拉取 Webshare 账户下的代理列表（自动翻页），返回 address/port/username/password/country 数组。
+     */
+    public static function fetchWebshareProxies(string $api_key, int $limit = 1000): array
+    {
+        $api_key = trim($api_key);
+        if ($api_key === '') {
+            throw new \InvalidArgumentException('Webshare API Key 不能为空');
+        }
+
+        $client = new Client([
+            'timeout' => 20,
+            'connect_timeout' => 8,
+            'http_errors' => false,
+            'headers' => ['Authorization' => 'Token ' . $api_key],
+        ]);
+
+        $url = self::WEBSHARE_LIST_URL;
+        $proxies = [];
+        $pages = 0;
+        while ($url !== null && count($proxies) < $limit && $pages < 20) {
+            $pages++;
+            $response = $client->request('GET', $url);
+            $status = (int) $response->getStatusCode();
+            $body = (string) $response->getBody();
+            if ($status === 401 || $status === 403) {
+                throw new \RuntimeException('Webshare API Key 无效或没有权限（HTTP ' . $status . '）');
+            }
+            if ($status < 200 || $status >= 300) {
+                throw new \RuntimeException('Webshare API 请求失败，HTTP ' . $status);
+            }
+
+            $data = json_decode($body, true);
+            if (!is_array($data) || !isset($data['results']) || !is_array($data['results'])) {
+                throw new \RuntimeException('Webshare API 返回了无法解析的数据');
+            }
+
+            foreach ($data['results'] as $item) {
+                if (!is_array($item) || empty($item['proxy_address']) || empty($item['port'])) {
+                    continue;
+                }
+                if (array_key_exists('valid', $item) && $item['valid'] === false) {
+                    continue;
+                }
+                $proxies[] = [
+                    'address' => (string) $item['proxy_address'],
+                    'port' => (int) $item['port'],
+                    'username' => (string) ($item['username'] ?? ''),
+                    'password' => (string) ($item['password'] ?? ''),
+                    'country' => strtoupper((string) ($item['country_code'] ?? '')),
+                ];
+            }
+
+            $next = $data['next'] ?? null;
+            $url = is_string($next) && $next !== '' ? $next : null;
+        }
+
+        return array_slice($proxies, 0, $limit);
     }
 
     private static function extractProxyCandidates(string $body): array
@@ -429,7 +557,12 @@ class ProxyController extends UserBase
             return $items;
         }
 
-        $host = self::firstArrayValue($value, ['host', 'ip', 'address', 'server']);
+        // Webshare 列表中被标记为失效的代理直接跳过
+        if (array_key_exists('valid', $value) && $value['valid'] === false) {
+            return $items;
+        }
+
+        $host = self::firstArrayValue($value, ['host', 'ip', 'address', 'server', 'proxy_address', 'hostname']);
         $port = self::firstArrayValue($value, ['port']);
         if ($host !== null && $port !== null) {
             $user = self::firstArrayValue($value, ['username', 'user', 'login']);

@@ -4,21 +4,11 @@
     <div class="az-page-head">
         <div>
             <h1 class="az-page-title">Linode 账户</h1>
-            <p class="az-page-subtitle">管理 Linode Token 和账户状态。</p>
+            <p class="az-page-subtitle">管理 Linode Token 和账户状态。账户的所有操作（刷新 / 创建 / 电源 / 删除）都会走绑定的代理。</p>
         </div>
         <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/linode/create">
             <i class="mdui-icon material-icons">add</i>&nbsp;添加账户
         </a>
-    </div>
-
-    <div class="mdui-m-t-2">
-        代理来源：<select id="proxy_mode" style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
-            <option value="none">不使用代理</option>
-            <option value="default">使用默认代理池</option>
-            {volist name="proxies" id="proxy"}
-            <option value="pool:{$proxy.id}">{$proxy.name} - [{:strtoupper($proxy.protocol)}{if $proxy.source_type == 'api'} API{/if}] {if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}{if $proxy.is_default == 1}（默认）{/if}</option>
-            {/volist}
-        </select>
     </div>
 
     <div class="mdui-table-fluid-fixed mdui-m-t-2">
@@ -30,6 +20,7 @@
                     <th>名称</th>
                     <th>用户名</th>
                     <th>邮箱</th>
+                    <th>绑定代理</th>
                     <th>备注</th>
                     <th>创建于</th>
                 </tr>
@@ -40,12 +31,14 @@
                     <td>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-blue-grey" onclick="refreshAccount({$account.id})">刷新</button>
                         <a class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-indigo" href="/user/server/linode/create?id={$account.id}">创建</a>
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised" onclick="bindProxy({$account.id})">换绑代理</button>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-pink" onclick="deleteAccount({$account.id})">删除</button>
                     </td>
                     <td>{$total--}</td>
                     <td>{$account.label}</td>
                     <td>{$account.username}</td>
                     <td>{$account.email}</td>
+                    <td>{$account.proxy_label}</td>
                     <td>{$account.mark}</td>
                     <td>{:date('Y-m-d H:i:s', $account.created_at)}</td>
                 </tr>
@@ -53,23 +46,25 @@
             </tbody>
         </table>
     </div>
+
+    <div id="bind-proxy-template" style="display:none">
+        <select class="bind-proxy-select" style="width:100%;height:36px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
+            <option value="none">不使用代理</option>
+            <option value="default">跟随默认代理</option>
+            {volist name="proxies" id="proxy"}
+            <option value="pool:{$proxy.id}">{$proxy.name} - [{:strtoupper($proxy.protocol)}{if $proxy.source_type == 'api'} API{/if}] {if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}{if $proxy.is_default == 1}（默认）{/if}</option>
+            {/volist}
+        </select>
+    </div>
 </main>
 </body>
 
 <script>
-    function proxyRequestData(extra) {
-        var mode = $('#proxy_mode').val() || 'none';
-        var data = extra || {};
-        data.proxy_mode = mode;
-        data.proxy_id = mode.indexOf('pool:') === 0 ? mode.replace('pool:', '') : 0;
-        return data;
-    }
-
     function refreshAccount(id) {
         $.ajax({
             method: 'PUT',
             url: '/user/linode/' + id,
-            data: proxyRequestData({ action: 'refresh' }),
+            data: { action: 'refresh' },
             dataType: 'json',
             success: function (data) {
                 mdui.alert(data.content, data.title);
@@ -77,6 +72,39 @@
                     setTimeout("window.location = '/user/linode'", 1000);
                 }
             }
+        });
+    }
+
+    function bindProxy(id) {
+        mdui.dialog({
+            title: '换绑代理',
+            content: '<p>此账户的所有操作都将默认使用该代理：</p>' + document.getElementById('bind-proxy-template').innerHTML,
+            buttons: [
+                { text: '取消' },
+                {
+                    text: '确定',
+                    onClick: function () {
+                        var sels = document.querySelectorAll('.bind-proxy-select');
+                        var mode = sels[sels.length - 1].value;
+                        $.ajax({
+                            method: 'PUT',
+                            url: '/user/linode/' + id,
+                            data: {
+                                action: 'bind_proxy',
+                                proxy_mode: mode,
+                                proxy_id: mode.indexOf('pool:') === 0 ? mode.replace('pool:', '') : 0,
+                            },
+                            dataType: 'json',
+                            success: function (data) {
+                                mdui.alert(data.content, data.title);
+                                if (data.status == '1') {
+                                    setTimeout("window.location = '/user/linode'", 1000);
+                                }
+                            }
+                        });
+                    }
+                }
+            ]
         });
     }
 

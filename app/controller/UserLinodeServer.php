@@ -4,7 +4,6 @@ namespace app\controller;
 
 use app\model\Linode;
 use app\model\User;
-use app\model\UserProxy;
 use think\facade\View;
 
 class UserLinodeServer extends UserBase
@@ -18,7 +17,6 @@ class UserLinodeServer extends UserBase
 
         View::assign([
             'accounts' => $accounts,
-            'proxies' => $this->getProxies(),
         ]);
         return View::fetch('../app/view/user/linode/server/index.html');
     }
@@ -39,7 +37,6 @@ class UserLinodeServer extends UserBase
         View::assign([
             'accounts' => $accounts,
             'personalise' => $personalise,
-            'proxies' => $this->getProxies(),
             'regions' => LinodeList::regions(),
             'types' => LinodeList::types(),
             'images' => LinodeList::images(),
@@ -52,7 +49,7 @@ class UserLinodeServer extends UserBase
     {
         try {
             $account = $this->getAccount((int) $id);
-            $api = new LinodeApi($account->token, ProxyController::getProxyUrlFromInputOrDefault());
+            $api = new LinodeApi($account->token, ProxyController::getProxyUrlForAccount($account));
             return json($api->listInstances());
         } catch (\Throwable $e) {
             return json([
@@ -76,8 +73,8 @@ class UserLinodeServer extends UserBase
                 throw new \InvalidArgumentException('Root password must be at least 8 characters.');
             }
 
-            $proxy_url = ProxyController::getProxyUrlFromInputOrDefault();
-            $proxy_label = ProxyController::getProxyLabelFromInput();
+            $proxy_url = ProxyController::getProxyUrlForAccount($account);
+            $proxy_label = ProxyController::getProxyLabelForAccount($account);
             $api = new LinodeApi($account->token, $proxy_url);
             $created = [];
 
@@ -127,7 +124,7 @@ class UserLinodeServer extends UserBase
                 throw new \InvalidArgumentException('No Linode instances selected.');
             }
 
-            $api = new LinodeApi($account->token, ProxyController::getProxyUrlFromInputOrDefault());
+            $api = new LinodeApi($account->token, ProxyController::getProxyUrlForAccount($account));
             foreach ($instances as $instance_id) {
                 $api->action((int) $instance_id, $allowed[$action]);
             }
@@ -142,7 +139,7 @@ class UserLinodeServer extends UserBase
     {
         try {
             $account = $this->getAccount(input('account_id/d'));
-            $api = new LinodeApi($account->token, ProxyController::getProxyUrlFromInputOrDefault());
+            $api = new LinodeApi($account->token, ProxyController::getProxyUrlForAccount($account));
             $api->deleteInstance((int) $id);
 
             return json(Tools::msg('1', '删除成功', 'Linode 已删除'));
@@ -159,16 +156,5 @@ class UserLinodeServer extends UserBase
         }
 
         return $account;
-    }
-
-    private function getProxies()
-    {
-        $proxies = UserProxy::where('user_id', session('user_id'))
-            ->where('enabled', 1)
-            ->order('is_default', 'desc')
-            ->order('id', 'desc')
-            ->select();
-
-        return ProxyController::normalizeProxyRecords($proxies);
     }
 }

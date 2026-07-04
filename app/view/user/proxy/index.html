@@ -4,12 +4,19 @@
     <div class="az-page-head">
         <div>
             <h1 class="az-page-title">代理管理</h1>
-            <p class="az-page-subtitle">绑定到个人账号的 SOCKS5 / HTTP 代理，创建云主机时可直接选择代理池。</p>
+            <p class="az-page-subtitle">绑定到个人账号的 SOCKS5 / HTTP 代理，可在添加云账户时绑定，账户的所有操作都会走绑定的代理。</p>
         </div>
     </div>
 
     <div class="mdui-card mdui-m-t-2" style="overflow: visible">
-        <div class="mdui-card-content mdui-container">
+        <div class="mdui-tab mdui-tab-full-width" id="proxy-tabs">
+            <a href="javascript:;" class="mdui-ripple mdui-tab-active" data-pane="pane-manual">添加 / 编辑</a>
+            <a href="javascript:;" class="mdui-ripple" data-pane="pane-import">批量导入</a>
+            <a href="javascript:;" class="mdui-ripple" data-pane="pane-webshare">Webshare</a>
+        </div>
+
+        <!-- 手动添加 / 编辑 -->
+        <div id="pane-manual" class="mdui-card-content mdui-container proxy-pane">
             <input type="hidden" id="proxy_id" value="0">
             <div class="mdui-col-sm-12 mdui-col-md-4">
                 <div class="mdui-textfield mdui-textfield-floating-label">
@@ -36,14 +43,26 @@
                     </select>
                 </div>
             </div>
+            <div class="mdui-col-sm-12">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">content_paste</i>
+                    <label class="mdui-textfield-label">智能粘贴（粘贴 curl 命令 / 代理 URL / host:port:user:pass，自动填充下方表单）</label>
+                    <input class="mdui-textfield-input" id="proxy_smart_paste">
+                </div>
+            </div>
             <div id="proxy_api_box" class="mdui-col-sm-12" style="display:none;">
                 <div class="mdui-textfield mdui-textfield-floating-label">
                     <i class="mdui-icon material-icons">link</i>
-                    <label class="mdui-textfield-label">API URL（例如 9proxy 提取链接）</label>
+                    <label class="mdui-textfield-label">API URL（代理提取链接；Webshare 用户可留空，仅填 API Key）</label>
                     <input class="mdui-textfield-input" id="proxy_api_url">
                 </div>
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">vpn_key</i>
+                    <label class="mdui-textfield-label">API Key（Webshare 等 Token 鉴权服务，可选）</label>
+                    <input class="mdui-textfield-input" id="proxy_api_key">
+                </div>
                 <button id="test_proxy_api" class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">测试 API</button>
-                <span class="mdui-text-color-grey-600 mdui-m-l-1">支持 JSON data/list/proxies/result 和文本代理列表。</span>
+                <span class="mdui-text-color-grey-600 mdui-m-l-1">支持 JSON / 文本代理列表，兼容 Webshare API（Authorization: Token）。</span>
             </div>
             <div class="mdui-col-sm-12 mdui-col-md-4 manual-proxy-field">
                 <div class="mdui-textfield mdui-textfield-floating-label">
@@ -80,7 +99,7 @@
                     启用
                 </label>
                 <label class="mdui-checkbox mdui-m-l-2">
-                    <input id="proxy_default" type="checkbox" checked>
+                    <input id="proxy_default" type="checkbox">
                     <i class="mdui-checkbox-icon"></i>
                     默认代理
                 </label>
@@ -88,6 +107,88 @@
             <div class="mdui-col-sm-12 mdui-col-md-6 mdui-m-t-2">
                 <button id="save_proxy" class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">保存</button>
                 <button id="reset_proxy" class="mdui-btn mdui-btn-raised mdui-color-blue-grey mdui-ripple">清空</button>
+            </div>
+        </div>
+
+        <!-- 批量导入 -->
+        <div id="pane-import" class="mdui-card-content mdui-container proxy-pane" style="display:none;">
+            <div class="mdui-col-sm-12 mdui-typo">
+                <p class="mdui-m-b-0">每行一条代理，自动识别以下格式（未写协议时使用下方“默认协议”）：</p>
+                <ul class="mdui-m-t-0" style="color:#757575;">
+                    <li><code>curl --proxy "http://user:pass@1.2.3.4:8080/" https://ipv4.webshare.io/</code>（完整 curl 命令）</li>
+                    <li><code>http://user:pass@1.2.3.4:8080</code> 或 <code>socks5://user:pass@1.2.3.4:1080</code></li>
+                    <li><code>user:pass@1.2.3.4:8080</code></li>
+                    <li><code>1.2.3.4:8080:user:pass</code>（Webshare 下载列表格式）</li>
+                    <li><code>1.2.3.4:8080</code>（无鉴权）</li>
+                </ul>
+            </div>
+            <div class="mdui-col-sm-12">
+                <div class="mdui-textfield">
+                    <textarea class="mdui-textfield-input" id="import_content" rows="8"
+                        placeholder='curl --proxy "http://dcxvumfk:password@138.226.64.203:7892/" https://ipv4.webshare.io/&#10;1.2.3.4:8080:user:pass&#10;socks5://user:pass@5.6.7.8:1080'></textarea>
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4">
+                <div class="mdui-m-t-1" style="display:flex;align-items:center;gap:12px;min-height:48px;">
+                    <span style="white-space:nowrap;">默认协议：</span>
+                    <select id="import_protocol" class="mdui-select" mdui-select>
+                        <option value="http">HTTP</option>
+                        <option value="socks5">SOCKS5</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">label</i>
+                    <label class="mdui-textfield-label">名称前缀（可选）</label>
+                    <input class="mdui-textfield-input" id="import_name_prefix">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-4 mdui-m-t-2">
+                <label class="mdui-checkbox">
+                    <input id="import_enabled" type="checkbox" checked>
+                    <i class="mdui-checkbox-icon"></i>
+                    导入后启用
+                </label>
+            </div>
+            <div class="mdui-col-sm-12 mdui-m-t-2">
+                <button id="import_proxies" class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">开始导入</button>
+            </div>
+        </div>
+
+        <!-- Webshare 一键导入 -->
+        <div id="pane-webshare" class="mdui-card-content mdui-container proxy-pane" style="display:none;">
+            <div class="mdui-col-sm-12 mdui-typo">
+                <p class="mdui-m-b-0">输入 Webshare API Key（<a href="https://dashboard.webshare.io/userapi/keys" target="_blank" rel="noopener">控制台 → API Keys</a>），
+                    一键导入账户下全部代理（兼容 <a href="https://apidocs.webshare.io/" target="_blank" rel="noopener">apidocs.webshare.io</a>，mode=direct，自动翻页）。</p>
+                <p style="color:#757575;">Webshare 代理同一端口同时支持 HTTP 与 SOCKS5，按需选择协议即可。若希望代理随 Webshare 动态更新，可在“添加 / 编辑”里把来源设为“第三方 API”，仅填 API Key 保存。</p>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-6">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">vpn_key</i>
+                    <label class="mdui-textfield-label">Webshare API Key</label>
+                    <input class="mdui-textfield-input" id="webshare_api_key">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-3">
+                <div class="mdui-m-t-1" style="display:flex;align-items:center;gap:12px;min-height:48px;">
+                    <span style="white-space:nowrap;">协议：</span>
+                    <select id="webshare_protocol" class="mdui-select" mdui-select>
+                        <option value="http">HTTP</option>
+                        <option value="socks5">SOCKS5</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-col-md-3">
+                <div class="mdui-textfield mdui-textfield-floating-label">
+                    <i class="mdui-icon material-icons">label</i>
+                    <label class="mdui-textfield-label">名称前缀</label>
+                    <input class="mdui-textfield-input" id="webshare_name_prefix" value="Webshare">
+                </div>
+            </div>
+            <div class="mdui-col-sm-12 mdui-m-t-2">
+                <button id="test_webshare" class="mdui-btn mdui-btn-raised mdui-color-blue-grey mdui-ripple">测试 Key</button>
+                <button id="import_webshare" class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">一键导入</button>
             </div>
         </div>
     </div>
@@ -109,17 +210,21 @@
             </thead>
             <tbody>
                 {volist name="proxies" id="proxy"}
-                <tr data-id="{$proxy.id}" data-name="{$proxy.name}" data-source-type="{$proxy.source_type}" data-api-url="{:htmlspecialchars($proxy.api_url, ENT_QUOTES)}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-username="{$proxy.username}" data-password="{$proxy.password}" data-enabled="{$proxy.enabled}" data-default="{$proxy.is_default}">
+                <tr data-id="{$proxy.id}" data-name="{$proxy.name}" data-source-type="{$proxy.source_type}" data-api-url="{:htmlspecialchars($proxy.api_url, ENT_QUOTES)}" data-api-key="{:htmlspecialchars($proxy.api_key, ENT_QUOTES)}" data-protocol="{$proxy.protocol}" data-address="{$proxy.address}" data-port="{$proxy.port}" data-username="{$proxy.username}" data-password="{$proxy.password}" data-enabled="{$proxy.enabled}" data-default="{$proxy.is_default}">
                     <td>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-blue-grey" onclick="editProxy(this)">编辑</button>
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-indigo" onclick="testProxy({$proxy.id})">测试</button>
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised" onclick="toggleProxy({$proxy.id})">{if $proxy.enabled == 1}停用{else /}启用{/if}</button>
+                        {if $proxy.is_default != 1}
+                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised" onclick="setDefaultProxy({$proxy.id})">设为默认</button>
+                        {/if}
                         <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-pink" onclick="deleteProxy({$proxy.id})">删除</button>
                     </td>
                     <td>{$total--}</td>
                     <td>{$proxy.name}</td>
                     <td>{if $proxy.source_type == 'api'}API{else /}手动{/if}</td>
                     <td>{:strtoupper($proxy.protocol)}</td>
-                    <td>{if $proxy.source_type == 'api'}{:htmlspecialchars($proxy.api_url, ENT_QUOTES)}{else /}{$proxy.address}:{$proxy.port}{/if}</td>
+                    <td>{if $proxy.source_type == 'api'}{:htmlspecialchars($proxy.api_url ?: 'Webshare（API Key）', ENT_QUOTES)}{else /}{$proxy.address}:{$proxy.port}{/if}</td>
                     <td>{if $proxy.enabled == 1}启用{else /}停用{/if}</td>
                     <td>{if $proxy.is_default == 1}是{else /}否{/if}</td>
                     <td>{:date('Y-m-d H:i:s', $proxy.created_at)}</td>
@@ -156,6 +261,19 @@
 
     document.addEventListener('DOMContentLoaded', refreshProxyForm);
 
+    // 顶部选项卡切换
+    function showProxyPane(paneId) {
+        $('.proxy-pane').hide();
+        $('#' + paneId).show();
+        $('#proxy-tabs a').removeClass('mdui-tab-active');
+        $('#proxy-tabs a[data-pane="' + paneId + '"]').addClass('mdui-tab-active');
+        refreshProxyForm();
+    }
+
+    $('#proxy-tabs a').on('click', function () {
+        showProxyPane($(this).data('pane'));
+    });
+
     function updateProxySourceFields() {
         var isApi = $('#proxy_source_type').val() === 'api';
         $('#proxy_api_box').toggle(isApi);
@@ -165,11 +283,84 @@
 
     $('#proxy_source_type').on('change', updateProxySourceFields);
 
+    // 智能粘贴：解析 curl 命令 / URL / host:port:user:pass 并填充表单
+    function parseProxyText(raw) {
+        var text = (raw || '').trim();
+        if (text === '') {
+            return null;
+        }
+
+        // markdown 链接粘贴产物 [text](url) → 取链接目标
+        text = text.replace(/\[([^\[\]]*)\]\(([^()\s]+)\)/g, '$2');
+
+        // curl 命令：提取 --proxy / -x 参数
+        var curlMatch = text.match(/(?:^|\s)(?:--proxy(?![\w-])|-x)[= ]+("[^"]*"|'[^']*'|\S+)/);
+        if (curlMatch) {
+            text = curlMatch[1].replace(/^["']|["']$/g, '');
+        }
+
+        var result = { protocol: '', address: '', port: '', username: '', password: '' };
+
+        var urlMatch = text.match(/^([a-z][a-z0-9+.-]*):\/\/(.*)$/i);
+        if (urlMatch) {
+            result.protocol = /^http/i.test(urlMatch[1]) ? 'http' : 'socks5';
+            text = urlMatch[2].replace(/\/+$/, '');
+        }
+
+        var atPos = text.lastIndexOf('@');
+        if (atPos !== -1) {
+            var auth = text.slice(0, atPos).split(':');
+            result.username = decodeURIComponent(auth[0] || '');
+            result.password = decodeURIComponent(auth.slice(1).join(':') || '');
+            text = text.slice(atPos + 1);
+        }
+
+        var parts = text.split(':');
+        if (parts.length >= 4 && /^\d+$/.test(parts[1])) {
+            // host:port:user:pass
+            result.address = parts[0];
+            result.port = parts[1];
+            result.username = parts[2];
+            result.password = parts.slice(3).join(':');
+        } else if (parts.length >= 2 && /^\d+$/.test(parts[parts.length - 1])) {
+            result.port = parts[parts.length - 1];
+            result.address = parts.slice(0, -1).join(':').replace(/^\[|\]$/g, '');
+        } else {
+            return null;
+        }
+
+        return result.address !== '' && result.port !== '' ? result : null;
+    }
+
+    $('#proxy_smart_paste').on('input paste', function () {
+        var that = this;
+        setTimeout(function () {
+            var parsed = parseProxyText($(that).val());
+            if (!parsed) {
+                return;
+            }
+
+            $('#proxy_source_type').val('manual');
+            if (parsed.protocol !== '') {
+                $('#proxy_protocol').val(parsed.protocol);
+            }
+            $('#proxy_address').val(parsed.address);
+            $('#proxy_port').val(parsed.port);
+            $('#proxy_username').val(parsed.username);
+            $('#proxy_password').val(parsed.password);
+            if ($('#proxy_name').val() === '') {
+                $('#proxy_name').val(parsed.address + ':' + parsed.port);
+            }
+            updateProxySourceFields();
+        }, 0);
+    });
+
     function formData() {
         return {
             name: $('#proxy_name').val(),
             source_type: $('#proxy_source_type').val(),
             api_url: $('#proxy_api_url').val(),
+            api_key: $('#proxy_api_key').val(),
             protocol: $('#proxy_protocol').val(),
             address: $('#proxy_address').val(),
             port: $('#proxy_port').val(),
@@ -183,15 +374,17 @@
     function resetForm() {
         $('#proxy_id').val('0');
         $('#proxy_name').val('');
+        $('#proxy_smart_paste').val('');
         $('#proxy_source_type').val('manual');
         $('#proxy_api_url').val('');
+        $('#proxy_api_key').val('');
         $('#proxy_protocol').val('socks5');
         $('#proxy_address').val('');
         $('#proxy_port').val('');
         $('#proxy_username').val('');
         $('#proxy_password').val('');
         $('#proxy_enabled').prop('checked', true);
-        $('#proxy_default').prop('checked', true);
+        $('#proxy_default').prop('checked', false);
         updateProxySourceFields();
     }
 
@@ -215,10 +408,12 @@
 
     function editProxy(that) {
         var row = $(that).closest('tr');
+        showProxyPane('pane-manual');
         $('#proxy_id').val(row.data('id'));
         $('#proxy_name').val(row.data('name'));
         $('#proxy_source_type').val(row.data('source-type') || 'manual');
         $('#proxy_api_url').val(row.data('api-url') || '');
+        $('#proxy_api_key').val(row.data('api-key') || '');
         $('#proxy_protocol').val(row.data('protocol') || 'socks5');
         $('#proxy_address').val(row.data('address'));
         $('#proxy_port').val(row.data('port'));
@@ -235,6 +430,7 @@
             url: '/user/proxy/api/test',
             data: {
                 api_url: $('#proxy_api_url').val(),
+                api_key: $('#proxy_api_key').val(),
                 protocol: $('#proxy_protocol').val(),
             },
             dataType: 'json',
@@ -243,6 +439,102 @@
             }
         });
     });
+
+    // 批量导入
+    $('#import_proxies').on('click', function () {
+        var btn = $(this).prop('disabled', true);
+        $.ajax({
+            method: 'POST',
+            url: '/user/proxy/import',
+            data: {
+                content: $('#import_content').val(),
+                protocol: $('#import_protocol').val(),
+                name_prefix: $('#import_name_prefix').val(),
+                enabled: $('#import_enabled').prop('checked') ? 1 : 0,
+            },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+                if (data.status == '1') {
+                    setTimeout("window.location = '/user/proxy'", 1500);
+                }
+            },
+            complete: function () {
+                btn.prop('disabled', false);
+            }
+        });
+    });
+
+    // Webshare
+    $('#test_webshare').on('click', function () {
+        $.ajax({
+            method: 'POST',
+            url: '/user/proxy/api/test',
+            data: {
+                api_url: '',
+                api_key: $('#webshare_api_key').val(),
+                protocol: $('#webshare_protocol').val(),
+            },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.msg, data.status ? 'Key 可用' : 'Key 不可用');
+            }
+        });
+    });
+
+    $('#import_webshare').on('click', function () {
+        var btn = $(this).prop('disabled', true);
+        $.ajax({
+            method: 'POST',
+            url: '/user/proxy/import/webshare',
+            data: {
+                api_key: $('#webshare_api_key').val(),
+                protocol: $('#webshare_protocol').val(),
+                name_prefix: $('#webshare_name_prefix').val(),
+                enabled: 1,
+            },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+                if (data.status == '1') {
+                    setTimeout("window.location = '/user/proxy'", 1500);
+                }
+            },
+            complete: function () {
+                btn.prop('disabled', false);
+            }
+        });
+    });
+
+    function toggleProxy(id) {
+        $.ajax({
+            method: 'PUT',
+            url: '/user/proxy/' + id,
+            data: { action: 'toggle' },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+                if (data.status == '1') {
+                    setTimeout("window.location = '/user/proxy'", 800);
+                }
+            }
+        });
+    }
+
+    function setDefaultProxy(id) {
+        $.ajax({
+            method: 'PUT',
+            url: '/user/proxy/' + id,
+            data: { action: 'default' },
+            dataType: 'json',
+            success: function (data) {
+                mdui.alert(data.content, data.title);
+                if (data.status == '1') {
+                    setTimeout("window.location = '/user/proxy'", 800);
+                }
+            }
+        });
+    }
 
     function testProxy(id) {
         $.ajax({

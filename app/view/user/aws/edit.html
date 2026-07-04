@@ -55,7 +55,7 @@
                             <option value="0">不使用代理</option>
                             <option value="-1">跟随默认代理</option>
                             {volist name="proxies" id="proxy"}
-                            <option value="{$proxy.id}">{$proxy.name}（{$proxy.address}:{$proxy.port}）</option>
+                            <option value="{$proxy.id}">{$proxy.name}（{if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}）</option>
                             {/volist}
                         </select>
                     </div>
