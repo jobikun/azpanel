@@ -96,11 +96,29 @@ class InternalCloudflareDns extends BaseController
         }
     }
 
+    /**
+     * @return int[]|null 现存账号 id 列表；查询失败时返回 null（不过滤，宁可多显示也不误漏）
+     */
+    private function existingAccountIds(string $model_class): ?array
+    {
+        try {
+            $ids = $model_class::column('id');
+            return is_array($ids) ? array_map('intval', $ids) : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     private function listAzureResources(): array
     {
         $items = [];
+        // 账号删掉后残留的机器行不再对外返回，保持和面板里看到的列表一致
+        $account_ids = $this->existingAccountIds(Azure::class);
         $servers = AzureServer::order('id', 'desc')->select();
         foreach ($servers as $server) {
+            if ($account_ids !== null && !in_array((int) ($server->account_id ?? 0), $account_ids, true)) {
+                continue;
+            }
             $ip = trim((string) ($server->ip_address ?? ''));
             $items[] = [
                 'key' => 'azure|' . (string) ($server->account_id ?? '') . '|' . (string) ($server->location ?? '') . '|' . (string) ($server->vm_id ?? '') . '|ipv4',
@@ -162,7 +180,30 @@ class InternalCloudflareDns extends BaseController
             }
         }
 
+        self::pruneAwsResourcesOfDeletedAccounts();
+
         return $synced;
+    }
+
+    /**
+     * 删除已不存在账号残留的缓存行。账号删掉后不会再被同步，
+     * 不清理的话这些机器会永远留在缓存表里。
+     */
+    private static function pruneAwsResourcesOfDeletedAccounts(): void
+    {
+        try {
+            $known_ids = Aws::column('id');
+            if (!is_array($known_ids)) {
+                return;
+            }
+            $known_ids = array_map('intval', $known_ids);
+            if ($known_ids === []) {
+                AwsServer::where('id', '>', 0)->delete();
+                return;
+            }
+            AwsServer::where('account_id', 'not in', $known_ids)->delete();
+        } catch (\Throwable $e) {
+        }
     }
 
     /**
@@ -424,8 +465,13 @@ class InternalCloudflareDns extends BaseController
             return [];
         }
 
+        // 账号删掉后它的缓存行不会再被同步/清理，这里过滤掉，避免一直显示已删除的机器
+        $account_ids = $this->existingAccountIds(Aws::class);
         $items = [];
         foreach ($servers as $server) {
+            if ($account_ids !== null && !in_array((int) ($server->account_id ?? 0), $account_ids, true)) {
+                continue;
+            }
             $key = (string) ($server->resource_key ?? '');
             if ($key === '') {
                 continue;
