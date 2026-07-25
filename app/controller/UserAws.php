@@ -5,6 +5,7 @@ use app\controller\AwsApi;
 use app\controller\AwsList;
 use app\controller\UserTask;
 use app\model\Aws;
+use app\service\AwsCredentialParser;
 use think\facade\View;
 
 class UserAws extends UserBase
@@ -128,6 +129,7 @@ class UserAws extends UserBase
         $aws_sk = trim(input('aws_sk/s', ''));
         $user_mark = trim(input('user_mark/s', ''));
         $batch_addition = trim(input('batch_addition/s', ''));
+        $smart_input = trim(input('smart_input/s', ''));
         $remark_filling = trim(input('remark_filling/s', 'input'));
 
         $user_id = (int) session('user_id');
@@ -137,32 +139,35 @@ class UserAws extends UserBase
             // 用绑定的代理来做创建时的配额检测，保证添加阶段就走指定代理
             $proxy_url = ProxyController::getProxyUrlForAccount((object) ['proxy_id' => $proxy_id, 'user_id' => $user_id]);
 
-            if ($add_mode === 'single') {
-                $batch_addition = $email . PHP_EOL . $passwd . PHP_EOL . $aws_ak . PHP_EOL . $aws_sk;
-            }
-
-            $accounts = preg_split('/\r\n|\r|\n/', $batch_addition);
-            $accounts = array_map('trim', $accounts);
-
-            if (count($accounts) % 4 !== 0) {
-                throw new \Exception("内容与数量不匹配，请按 邮箱、密码、AK、SK 四行为一组填写");
-            }
-
             $array = [];
-            $pointer = 0;
+            if ($smart_input !== '') {
+                $accounts = AwsCredentialParser::parse($smart_input);
+            } elseif ($add_mode === 'single') {
+                $accounts = [[
+                    'email' => $email,
+                    'passwd' => $passwd,
+                    'ak' => $aws_ak,
+                    'sk' => $aws_sk,
+                ]];
+            } else {
+                $accounts = AwsCredentialParser::parse($batch_addition);
+            }
 
-            while ($pointer < count($accounts)) {
-                $email = $accounts[$pointer++] ?? '';
-                $passwd = $accounts[$pointer++] ?? '';
-                $aws_ak = $accounts[$pointer++] ?? '';
-                $aws_sk = $accounts[$pointer++] ?? '';
+            if (empty($accounts)) {
+                throw new \Exception("未识别到账户，请至少提供邮箱、Access Key 和 Secret Key");
+            }
 
-                self::awsCertificateVerify([
-                    $email,
-                    $passwd,
-                    $aws_ak,
-                    $aws_sk,
-                ]);
+            foreach ($accounts as $index => $credentials) {
+                $email = trim($credentials['email'] ?? '');
+                $passwd = trim($credentials['passwd'] ?? '');
+                $aws_ak = trim($credentials['ak'] ?? '');
+                $aws_sk = trim($credentials['sk'] ?? '');
+
+                try {
+                    self::awsCertificateVerify([$email, $passwd, $aws_ak, $aws_sk]);
+                } catch (\Throwable $e) {
+                    throw new \Exception('第 ' . ($index + 1) . ' 个账户识别不完整：' . $e->getMessage());
+                }
 
                 $quota = [];
 

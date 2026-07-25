@@ -15,6 +15,18 @@
             <div class="mdui-card mdui-m-t-2" style="overflow: visible">
                 <div class="mdui-card-content mdui-container">
                     <div class="mdui-col-12">
+                        <div class="mdui-textfield mdui-textfield-floating-label">
+                            <i class="mdui-icon material-icons">auto_awesome</i>
+                            <label class="mdui-textfield-label">智能识别（可粘贴任意格式、多账户及其他无关信息）</label>
+                            <textarea rows="8" class="mdui-textfield-input" id="smart_input"></textarea>
+                            <div class="mdui-textfield-helper">自动提取邮箱、登录密码、Access Key、Secret Key；MFA、额度、国家等信息会被忽略</div>
+                        </div>
+                        <button type="button" class="mdui-btn mdui-color-indigo-50 mdui-text-color-indigo mdui-ripple" id="recognize">
+                            <i class="mdui-icon material-icons">manage_search</i> 识别并预览
+                        </button>
+                        <span id="recognize_result" class="mdui-m-l-1"></span>
+                    </div>
+                    <div class="mdui-col-12">
                         <label class="mdui-switch">
                             单个添加&nbsp;
                             <input type="checkbox" class="exclude" />
@@ -149,6 +161,50 @@
         $("#batch_addition_element").toggle();
     });
 
+    function recognizeCredentials(text) {
+        var records = [];
+        var current = {};
+        var lines = text.replace(/\r\n?/g, '\n').split('\n');
+        function finish() {
+            if (current.email || current.ak || current.sk) records.push(current);
+            current = {};
+        }
+        lines.forEach(function (raw) {
+            var line = raw.trim();
+            if (!line) return;
+            var email = line.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i);
+            var ak = line.toUpperCase().match(/\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|AGPA)[A-Z0-9]{16}\b/);
+            var sk = line.match(/^\s*(?:secret[\s_-]*(?:access[\s_-]*)?key|aws[\s_-]*sk|secretkey|秘密访问密钥|私密密钥|sk)\s*[:：=|\-]\s*["'`]?([A-Za-z0-9+\/=]{40})/i);
+            var password = line.match(/^\s*(?:password|passwd|pass|登录密码|密码)\s*[:：=|\-]\s*(.+?)\s*$/i);
+            if (email && current.email && current.ak && current.sk) finish();
+            if (email) current.email = email[0];
+            if (ak && current.ak && current.sk) finish();
+            if (ak) current.ak = ak[0];
+            if (sk) current.sk = sk[1];
+            if (password) current.passwd = password[1].replace(/^["'`]|["'`,;]$/g, '');
+        });
+        finish();
+        return records;
+    }
+
+    $('#recognize').on('click', function () {
+        var records = recognizeCredentials($('#smart_input').val());
+        var complete = records.filter(function (item) {
+            return item.email && item.ak && item.sk;
+        });
+        if (complete.length === 1) {
+            $('#email').val(complete[0].email);
+            $('#passwd').val(complete[0].passwd || '');
+            $('#aws_ak').val(complete[0].ak);
+            $('#aws_sk').val(complete[0].sk);
+            mdui.updateTextFields();
+        }
+        $('#recognize_result')
+            .toggleClass('mdui-text-color-red', complete.length === 0)
+            .toggleClass('mdui-text-color-green', complete.length > 0)
+            .text(complete.length > 0 ? '已识别 ' + complete.length + ' 个完整账户' : '未识别到完整账户，请检查邮箱、AK、SK');
+    });
+
     $('#add').on('click', function () {
         mdui.confirm('添加账户时，面板需要获取此账户的配额，这将花费 3~5 秒，等待期间请勿重复点击添加按钮', '添加确认',
             function () {
@@ -173,6 +229,7 @@
                         batch_addition: $('#batch_addition').val(),
                         remark_filling: $('#remark_filling').val(),
                         proxy_id: $('#proxy_id').val(),
+                        smart_input: $('#smart_input').val(),
                     },
                     dataType: "json",
                     success: function (data) {
