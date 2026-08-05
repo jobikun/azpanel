@@ -17,9 +17,9 @@
                     <div class="mdui-col-12">
                         <div class="mdui-textfield mdui-textfield-floating-label">
                             <i class="mdui-icon material-icons">auto_awesome</i>
-                            <label class="mdui-textfield-label">智能识别（可粘贴任意格式、多账户及其他无关信息）</label>
+                            <label class="mdui-textfield-label">智能识别（多账户，字段可用 ~ | ; , 制表符或空格分隔，含无关信息也可）</label>
                             <textarea rows="8" class="mdui-textfield-input" id="smart_input"></textarea>
-                            <div class="mdui-textfield-helper">自动提取邮箱、登录密码、Access Key、Secret Key；MFA、额度、国家等信息会被忽略</div>
+                            <div class="mdui-textfield-helper">按行识别，每行/每账户自动提取邮箱、Access Key、Secret Key（登录密码尽量识别）；MFA、额度、国家等会被忽略。仅完整账户会被保存</div>
                         </div>
                         <button type="button" class="mdui-btn mdui-color-indigo-50 mdui-text-color-indigo mdui-ripple" id="recognize">
                             <i class="mdui-icon material-icons">manage_search</i> 识别并预览
@@ -162,29 +162,160 @@
     });
 
     function recognizeCredentials(text) {
-        var records = [];
-        var current = {};
-        var lines = text.replace(/\r\n?/g, '\n').split('\n');
-        function finish() {
-            if (current.email || current.ak || current.sk) records.push(current);
-            current = {};
+        // Mirror of app/service/AwsCredentialParser.php — keep the two in sync.
+        // Anchor on the three fixed-shape fields (email + 20-char AK + 40-char SK),
+        // in any order/delimiter, labelled or bare; password is best-effort.
+        var EMAIL = /[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i;
+        var ACCESS = /\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|AGPA)[A-Z0-9]{16}\b/;
+        var SECRET = /^[A-Za-z0-9+\/=]{40}$/;
+        var BASE32 = /^[A-Z2-7]{16,}$/; // MFA/TOTP seeds — never a secret key
+        var EMAIL_LABELS = 'e-?mail|邮箱|账号|账户';
+        var ACCESS_LABELS = 'access[\\s_-]*key(?:[\\s_-]*id)?|aws[\\s_-]*ak|accesskey|访问密钥(?:id)?|ak';
+        var SECRET_LABELS = 'secret[\\s_-]*(?:access[\\s_-]*)?key|aws[\\s_-]*sk|secretkey|秘密访问密钥|私密密钥|sk|secret';
+        var PASSWORD_LABELS = 'password|passwd|pass|登录密码|密码';
+        var STOP = ['mfa', '2fa', 'otp', 'totp', 'note', 'notes', 'remark', 'remarks',
+            'country', 'region', 'regions', 'status', 'limit', 'limits', 'quota',
+            'enabled', 'disabled', 'enable', 'disable', 'active', 'inactive',
+            'null', 'none', 'true', 'false', 'account', 'email', 'mail',
+            'password', 'passwd', 'pass', 'secret', 'key', 'access', 'aws'];
+
+        function clean(v) { return v.trim().replace(/^["'`,;]+|["'`,;]+$/g, '').trim(); }
+
+        function labeledValue(text, labels) {
+            var re = new RegExp('^\\s*(?:["\']?\\s*(?:' + labels + ')\\s*["\']?)\\s*[:：=|\\-]\\s*([^,;|\\t~]+?)\\s*[,;]?\\s*$', 'i');
+            var m = text.match(re);
+            return m ? clean(m[1]) : null;
         }
-        lines.forEach(function (raw) {
+        function labeledFromTokens(tokens, labels) {
+            for (var i = 0; i < tokens.length; i++) {
+                var v = labeledValue(tokens[i], labels);
+                if (v) return v;
+            }
+            return null;
+        }
+
+        function isPacked(line, tokens) {
+            if (/[~|;,\t]|\s{2,}/.test(line)) return true;
+            if (tokens.length < 2) return false;
+            return EMAIL.test(line) && ACCESS.test(line.toUpperCase());
+        }
+        function splitFields(line) {
+            var parts = /[~|;,\t]|\s{2,}/.test(line)
+                ? line.split(/\s*[~|;,\t]\s*|\s{2,}/)
+                : line.split(/\s+/);
+            return parts.map(function (p) { return p.trim(); }).filter(Boolean);
+        }
+
+        function pickSecret(tokens, ak) {
+            // Only auto-select an unambiguous secret: exactly 40 base64 chars,
+            // not the access key, not a base32 (MFA) seed, and unique on the line.
+            var seen = {};
+            for (var i = 0; i < tokens.length; i++) {
+                var c = clean(tokens[i]);
+                if (!SECRET.test(c) || BASE32.test(c)) continue;
+                if (c.toUpperCase() === ak || ACCESS.test(c.toUpperCase())) continue;
+                seen[c] = true;
+            }
+            var keys = Object.keys(seen);
+            return keys.length === 1 ? keys[0] : '';
+        }
+        function isPwCandidate(token) {
+            var c = clean(token);
+            if (c.length < 4) return false;
+            // A "name: value" / "name=value" token is a labelled other-field, not a password.
+            // (A purely numeric token is allowed: login passwords may be all digits.)
+            if (/[:：=]/.test(c)) return false;
+            if (EMAIL.test(c) || ACCESS.test(c.toUpperCase()) || SECRET.test(c) || BASE32.test(c)) return false;
+            return STOP.indexOf(c.toLowerCase()) === -1;
+        }
+
+        function extract(line) {
+            var out = { email: '', passwd: '', ak: '', sk: '', pw_packed: '', pw_lone: '' };
+            var tokens = splitFields(line);
+            var packed = isPacked(line, tokens);
+
+            var email = labeledValue(line, EMAIL_LABELS) || labeledFromTokens(tokens, EMAIL_LABELS);
+            if (!email && EMAIL.test(line)) email = line.match(EMAIL)[0];
+            if (email && EMAIL.test(email)) out.email = email.match(EMAIL)[0];
+
+            var ak = labeledValue(line, ACCESS_LABELS) || labeledFromTokens(tokens, ACCESS_LABELS);
+            if ((!ak || !ACCESS.test(ak.toUpperCase())) && ACCESS.test(line.toUpperCase())) ak = line.toUpperCase().match(ACCESS)[0];
+            if (ak && ACCESS.test(ak.toUpperCase())) out.ak = ak.toUpperCase().match(ACCESS)[0];
+
+            var sk = labeledValue(line, SECRET_LABELS) || labeledFromTokens(tokens, SECRET_LABELS);
+            if (sk) { var c = clean(sk); if (SECRET.test(c)) out.sk = c; }
+            if (!out.sk) out.sk = pickSecret(tokens, out.ak);
+
+            var pw = labeledValue(line, PASSWORD_LABELS) || labeledFromTokens(tokens, PASSWORD_LABELS);
+            if (pw) {
+                out.passwd = clean(pw);
+            } else if (packed) {
+                var candidates = [];
+                for (var i = 0; i < tokens.length; i++) {
+                    if (isPwCandidate(tokens[i])) {
+                        var candidate = clean(tokens[i]);
+                        if (candidates.indexOf(candidate) === -1) candidates.push(candidate);
+                    }
+                }
+                // A bare password is safe to infer only when it is the sole candidate.
+                if (candidates.length === 1) out.pw_packed = candidates[0];
+            } else if (tokens.length === 1 && isPwCandidate(tokens[0])) {
+                out.pw_lone = clean(tokens[0]);
+            }
+            return out;
+        }
+
+        var records = [];
+        var current = { email: '', passwd: '', ak: '', sk: '' };
+        function flush() {
+            if (current.email || current.ak || current.sk) records.push(current);
+            current = { email: '', passwd: '', ak: '', sk: '' };
+        }
+
+        var normalized = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n').trim();
+        normalized.split('\n').forEach(function (raw) {
             var line = raw.trim();
             if (!line) return;
-            var email = line.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i);
-            var ak = line.toUpperCase().match(/\b(?:AKIA|ASIA|AIDA|AROA|AIPA|ANPA|ANVA|AGPA)[A-Z0-9]{16}\b/);
-            var sk = line.match(/^\s*(?:secret[\s_-]*(?:access[\s_-]*)?key|aws[\s_-]*sk|secretkey|秘密访问密钥|私密密钥|sk)\s*[:：=|\-]\s*["'`]?([A-Za-z0-9+\/=]{40})/i);
-            var password = line.match(/^\s*(?:password|passwd|pass|登录密码|密码)\s*[:：=|\-]\s*(.+?)\s*$/i);
-            if (email && current.email && current.ak && current.sk) finish();
-            if (email) current.email = email[0];
-            if (ak && current.ak && current.sk) finish();
-            if (ak) current.ak = ak[0];
-            if (sk) current.sk = sk[1];
-            if (password) current.passwd = password[1].replace(/^["'`]|["'`,;]$/g, '');
+            var f = extract(line);
+
+            var keys = ['email', 'ak', 'sk'];
+            for (var b = 0; b < keys.length; b++) {
+                var k = keys[b];
+                if (f[k] && current[k] && f[k] !== current[k]) { flush(); break; }
+            }
+            keys.forEach(function (k) { if (f[k]) current[k] = f[k]; });
+
+            if (f.passwd) {
+                current.passwd = f.passwd;
+            } else if (!current.passwd) {
+                if (f.pw_packed) current.passwd = f.pw_packed;
+                else if (f.pw_lone && current.email && !current.ak) current.passwd = f.pw_lone;
+            }
         });
-        finish();
-        return records;
+        flush();
+
+        // Backwards compatibility: four unlabelled lines per account.
+        var anyComplete = records.some(function (r) { return r.email && r.ak && r.sk; });
+        if (!records.length || !anyComplete) {
+            var lines = normalized.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+            if (lines.length && lines.length % 4 === 0) {
+                var legacy = [];
+                for (var k = 0; k < lines.length; k += 4) {
+                    var record = { email: lines[k], passwd: lines[k + 1], ak: lines[k + 2].toUpperCase(), sk: lines[k + 3] };
+                    var emailMatch = record.email.match(EMAIL);
+                    var accessMatch = record.ak.match(ACCESS);
+                    if (emailMatch && emailMatch[0] === record.email
+                        && accessMatch && accessMatch[0] === record.ak
+                        && SECRET.test(record.sk) && !BASE32.test(record.sk)) {
+                        legacy.push(record);
+                    }
+                }
+                if (legacy.length) return legacy;
+            }
+        }
+        // Only surface fully-formed accounts (mirrors the server parser); stray
+        // emails / half-filled fragments in the pasted noise are dropped.
+        return records.filter(function (r) { return r.email && r.ak && r.sk; });
     }
 
     $('#recognize').on('click', function () {
@@ -192,17 +323,27 @@
         var complete = records.filter(function (item) {
             return item.email && item.ak && item.sk;
         });
-        if (complete.length === 1) {
+        var message;
+        if (complete.length === 1 && add_mode === 'single') {
+            // Move the single account into the editable form and hand control to
+            // it: clearing smart_input means the (possibly corrected) form fields
+            // are what actually get submitted, instead of a silent re-parse.
             $('#email').val(complete[0].email);
             $('#passwd').val(complete[0].passwd || '');
             $('#aws_ak').val(complete[0].ak);
             $('#aws_sk').val(complete[0].sk);
+            $('#smart_input').val('');
             mdui.updateTextFields();
+            message = '已识别 1 个完整账户，已填入下方表单，可修改后再点击“添加”保存';
+        } else if (complete.length >= 1) {
+            message = '已识别 ' + complete.length + ' 个完整账户，点击“添加”将按上方粘贴内容保存';
+        } else {
+            message = '未识别到完整账户，请检查邮箱、AK、SK';
         }
         $('#recognize_result')
             .toggleClass('mdui-text-color-red', complete.length === 0)
             .toggleClass('mdui-text-color-green', complete.length > 0)
-            .text(complete.length > 0 ? '已识别 ' + complete.length + ' 个完整账户' : '未识别到完整账户，请检查邮箱、AK、SK');
+            .text(message);
     });
 
     $('#add').on('click', function () {
