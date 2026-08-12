@@ -53,6 +53,16 @@
                         <label class="mdui-textfield-label">默认TTL</label>
                         <textarea class="mdui-textfield-input" id="ali_ttl">{$config.ali_ttl}</textarea>
                     </div>
+                    <div class="mdui-m-t-2">HTTPDNS API 代理：
+                        <select id="ali_httpdns_proxy_id" class="mdui-select" mdui-select>
+                            <option value="0">直连（不使用代理）</option>
+                            <option value="-1">跟随默认代理池</option>
+                            {volist name="proxies" id="proxy"}
+                            <option value="{$proxy.id}">{$proxy.name}（{if $proxy.source_type == 'api'}API 动态{else /}{$proxy.address}:{$proxy.port}{/if}）</option>
+                            {/volist}
+                        </select>
+                        <p class="mdui-text-color-grey">用于 alidns.aliyuncs.com 的 Zone 和记录管理请求，支持 HTTP、SOCKS5 和 API 动态代理。</p>
+                    </div>
                 </div>
             </div>
 
@@ -76,6 +86,7 @@
     // 应用设置值
     $("#resolv_sync").val("{$config.resolv_sync}");
     $("#sync_immediately_after_creation").val("{$config.sync_immediately_after_creation}");
+    $("#ali_httpdns_proxy_id").val("{$config.ali_httpdns_proxy_id ?? 0}");
 
     // 点击事件
     $('#modify').on('click', function () {
@@ -92,6 +103,7 @@
                         resolv_sync: $('#resolv_sync').val(),
                         ali_whitelist: $('#ali_whitelist').val(),
                         sync_immediately_after_creation: $('#sync_immediately_after_creation').val(),
+                        ali_httpdns_proxy_id: $('#ali_httpdns_proxy_id').val(),
                     },
                     dataType: "json",
                     success: function (data) {

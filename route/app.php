@@ -134,6 +134,20 @@ Route::put('/admin/setting',                      'AdminSetting/baseSave');
 Route::get('/admin/setting/resolv',               'AdminSetting/resolvIndex');
 Route::put('/admin/setting/resolv',               'AdminSetting/resolvSave');
 
+Route::get('/admin/httpdns',                       'AdminHttpDns/index');
+Route::get('/admin/httpdns/zones',                 'AdminHttpDns/zones');
+Route::get('/admin/httpdns/connection',            'AdminHttpDns/connection');
+Route::get('/admin/httpdns/zone',                  'AdminHttpDns/zone');
+Route::post('/admin/httpdns/zone',                 'AdminHttpDns/addZone');
+Route::put('/admin/httpdns/zone',                  'AdminHttpDns/updateZone');
+Route::put('/admin/httpdns/zone/scope',            'AdminHttpDns/scope');
+Route::delete('/admin/httpdns/zone',               'AdminHttpDns/deleteZone');
+Route::get('/admin/httpdns/records',               'AdminHttpDns/records');
+Route::post('/admin/httpdns/records',              'AdminHttpDns/saveRecord');
+Route::put('/admin/httpdns/records',               'AdminHttpDns/updateRecord');
+Route::patch('/admin/httpdns/records/status',       'AdminHttpDns/status');
+Route::delete('/admin/httpdns/records',             'AdminHttpDns/deleteRecord');
+
 // 邮件
 Route::get('/admin/setting/email',                'AdminSetting/emailIndex');
 Route::put('/admin/setting/email',                'AdminSetting/emailSave');

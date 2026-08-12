@@ -62,7 +62,23 @@ class DomainResolveConfigItem extends Seeder
                 'class' => 'resolv',
                 'default_value' => '600',
                 'type' => 'string',
-            ]
+            ],
+            [
+                'id' => null,
+                'item' => 'ali_httpdns_proxy_id',
+                'value' => '0',
+                'class' => 'resolv',
+                'default_value' => '0',
+                'type' => 'int',
+            ],
+            [
+                'id' => null,
+                'item' => 'ali_httpdns_proxy_user_id',
+                'value' => '0',
+                'class' => 'resolv',
+                'default_value' => '0',
+                'type' => 'int',
+            ],
         ];
 
         $conn = $this->table('config');
