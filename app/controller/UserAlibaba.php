@@ -65,11 +65,11 @@ class UserAlibaba extends UserBase
     {
         try {
             $account = $this->account((int) $id);
-            View::assign(['account' => $account]);
-            return View::fetch('../app/view/user/alibaba/httpdns.html');
         } catch (\Throwable) {
             return redirect('/user/alibaba');
         }
+        View::assign(['account' => $account]);
+        return View::fetch('../app/view/user/alibaba/httpdns.html');
     }
 
     public function zones($id) { return $this->api((int) $id, fn($api) => ['zones' => $api->zones()]); }

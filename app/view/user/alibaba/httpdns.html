@@ -1,5 +1,5 @@
 {include file="../app/view/user/header.html" title="HTTPDNS 内置权威解析" /}
-<main class="az-main">
+<main class="az-main" data-account-id="{$account.id}">
 <div class="az-page-head"><div><h1 class="az-page-title">HTTPDNS 内置权威解析</h1>
 <p class="az-page-subtitle">账户：<strong>{$account.name|htmlspecialchars}</strong>　访问密钥：<code>{$account.access_key_id|substr=0,8}…{$account.access_key_id|substr=-4}</code></p></div><a class="mdui-btn" href="/user/alibaba">返回账户列表</a></div>
 
@@ -40,7 +40,8 @@
 <div class="mdui-table-fluid mdui-m-t-2"><table class="mdui-table"><thead><tr><th>主机记录</th><th>类型</th><th>记录值</th><th>TTL</th><th>解析线路</th><th>权重</th><th>备注</th><th>状态</th><th>记录 ID</th><th>操作</th></tr></thead><tbody id="records"><tr><td colspan="10">请先选择权威域名</td></tr></tbody></table></div>
 </main>
 <script>
-var accountId={$account.id};
+{literal}
+var accountId=Number($('.az-main').data('account-id'));
 var base='/user/alibaba/'+accountId+'/httpdns';
 var recordsById={};
 var removedRecordIds=[];
@@ -66,7 +67,7 @@ function collectValues(){var rows=[];$('#value_rows .value-row').each(function()
 function selectedLine(){return $('#line').val()==='__custom__'?$('#custom_line').val():$('#line').val();}
 function payload(){return{zone_id:zoneId(),rr:$('#rr').val(),type:$('#type').val(),ttl:$('#ttl').val(),line:selectedLine(),weight_status:$('#weight_status').val(),priority:$('#priority').val(),records:JSON.stringify(collectValues()),removed_record_ids:JSON.stringify(removedRecordIds)};}
 function saveRecord(){if(!requireZone()){return;}var values=collectValues();if(!values.length||values.some(function(v){return !String(v.value||'').trim();})){mdui.alert('每一行都必须填写记录值');return;}var edit=values.some(function(v){return v.record_id;})||removedRecordIds.length>0;req(edit?'PUT':'POST',base+'/records',payload(),function(r){mdui.snackbar(r.content||'记录集合已保存');resetForm();loadRecords();});}
-function setLine(line){line=String(line||'default');if($('#line option[value="'+line.replace(/"/g,'\\"')+'"]').length){$('#line').val(line);$('#custom_line').val('');}else{$('#line').val('__custom__');$('#custom_line').val(line);}updateLineFields();}
+function setLine(line){line=String(line||'default');var exists=$('#line option').filter(function(){return this.value===line;}).length>0;if(exists){$('#line').val(line);$('#custom_line').val('');}else{$('#line').val('__custom__');$('#custom_line').val(line);}updateLineFields();}
 function editRecordGroup(id){var seed=recordsById[id],group=groupRecords(seed);removedRecordIds=[];$('#rr').val(seed.Rr);$('#type').val(seed.Type);$('#ttl').val(String(seed.Ttl));$('#priority').val(seed.Priority||1);setLine(seed.RequestSource||seed.Line||'default');$('#weight_status').val('keep');$('#value_rows').empty();group.forEach(function(v){addValueRow({record_id:v.RecordId,value:v.Value,weight:v.Weight||1,remark:v.Remark||''});});$('#form-title').text('编辑记录集合：'+seed.Rr+' / '+seed.Type);updateTypeFields();mdui.updateTextFields();window.scrollTo({top:$('#form-title').offset().top-90,behavior:'smooth'});}
 function resetForm(){removedRecordIds=[];$('#rr').val('');$('#type').val('A');$('#ttl').val('60');$('#priority').val('1');setLine('default');$('#weight_status').val('keep');$('#value_rows').empty();addValueRow();$('#form-title').text('添加解析记录');updateTypeFields();mdui.updateTextFields();}
 function updateTypeFields(){$('#priority_box').toggle($('#type').val()==='MX');}
@@ -77,4 +78,5 @@ $('#zone').on('change',function(){resetForm();if(zoneId()){loadRecords();showZon
 $('#type').on('change',updateTypeFields);
 $('#line').on('change',updateLineFields);
 $(function(){resetForm();loadZones();});
+{/literal}
 </script>{include file="../app/view/user/footer.html" /}</html>
