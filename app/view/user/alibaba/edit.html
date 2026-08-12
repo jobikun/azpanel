@@ -7,6 +7,7 @@
 <div class="mdui-textfield"><label class="mdui-textfield-label">AccessKey Secret（留空则保持不变）</label><input type="password" class="mdui-textfield-input" id="access_key_secret" autocomplete="new-password"></div>
 <div class="mdui-textfield"><label class="mdui-textfield-label">备注</label><input class="mdui-textfield-input" id="remark" value="{$account.remark|htmlspecialchars}"></div>
 <label>绑定代理</label><select id="proxy_id" class="mdui-select" mdui-select data-current="{$account.proxy_id}"><option value="0">不使用代理</option><option value="-1">跟随默认代理</option>{volist name="proxies" id="proxy"}<option value="{$proxy.id}">{$proxy.name}（{if $proxy.source_type == 'api'}API 动态{else /}{$proxy.address}:{$proxy.port}{/if}）</option>{/volist}</select>
+<p class="mdui-text-color-grey">HTTPDNS 内置权威 Zone 使用 <code>AliyunPubDNSFullAccess</code>（<code>pubdns:*</code>）权限，并始终通过 HTTPS 请求 Alibaba Cloud 国际站 API。</p>
 </div><div class="mdui-card-actions"><button class="mdui-btn mdui-color-indigo" onclick="saveAccount()">验证并保存</button><a class="mdui-btn" href="/user/alibaba">取消</a></div></div>
 </div></main>
 <script>$('#proxy_id').val($('#proxy_id').attr('data-current'));function saveAccount(){$.ajax({method:'PUT',url:'/user/alibaba/{$account.id}',data:{name:$('#name').val(),access_key_id:$('#access_key_id').val(),access_key_secret:$('#access_key_secret').val(),remark:$('#remark').val(),proxy_id:$('#proxy_id').val()},dataType:'json',success:function(r){mdui.alert(r.content,r.title);if(r.status==='1'){setTimeout(function(){location='/user/alibaba';},800);}}});}</script>

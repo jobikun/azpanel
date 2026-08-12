@@ -1,8 +1,8 @@
 {include file="../app/view/user/header.html" title="HTTPDNS Authoritative Zones" /}
 <main class="az-main"><div class="az-page-head"><div><h1 class="az-page-title">HTTPDNS &#20869;&#32622;&#26435;&#23041;</h1>
 <p class="az-page-subtitle">Account: <strong>{$account.name|htmlspecialchars}</strong> / AccessKey: <code>{$account.access_key_id|substr=0,8}…{$account.access_key_id|substr=-4}</code></p></div><a class="mdui-btn" href="/user/alibaba">返回账户</a></div>
-<div class="mdui-chip"><span class="mdui-chip-title" id="connection_status">Connection not tested</span></div>
-<button class="mdui-btn mdui-btn-dense" onclick="testConnection()">Test API / Proxy</button>
+<div class="mdui-chip"><span class="mdui-chip-title" id="connection_status">尚未测试连接</span></div>
+<button class="mdui-btn mdui-btn-dense" onclick="testConnection()">测试 API / 代理</button>
 <div class="mdui-card mdui-m-t-2"><div class="mdui-card-content"><label>Zone / Zone ID</label>
 <select id="zone" class="mdui-select"><option value="">-- Select Zone --</option></select>
 <button class="mdui-btn mdui-color-indigo mdui-m-l-1" onclick="loadZones()">&#21047;&#26032; Zone</button>
@@ -30,7 +30,7 @@
 <script>
 var accountId={$account.id};var base='/user/alibaba/'+accountId+'/httpdns';var recordsById={};function esc(v){return $('<div>').text(v==null?'':v).html();}function zoneId(){return $('#zone').val();}
 function req(method,url,data,done){$.ajax({method:method,url:url,data:data,dataType:'json',success:function(r){if(r.status==='0'){mdui.alert(r.content,r.title);return;}done(r);},error:function(x){mdui.alert('HTTP '+x.status,'Request failed');}});}
-function testConnection(){req('GET',base+'/connection',{},function(r){var c=r.connection||{};$('#connection_status').text((c.proxy||'No proxy')+' | '+(c.endpoint||'')+' | Zones: '+(c.zone_count||0));mdui.snackbar('Alibaba Cloud API connection succeeded');});}
+function testConnection(){req('GET',base+'/connection',{},function(r){var c=r.connection||{};$('#connection_status').text((c.proxy||'不使用代理')+' | '+(c.endpoint||'')+' | Zone 数量：'+(c.zone_count||0));mdui.snackbar('Alibaba Cloud API 连接成功');});}
 function loadZones(){var selected=zoneId();req('GET',base+'/zones',{},function(r){var h='<option value="">-- Select Zone --</option>';(r.zones||[]).forEach(function(z){h+='<option value="'+esc(z.ZoneId)+'">'+esc(z.ZoneName)+' / '+esc(z.ZoneId)+' ('+esc(z.RecordCount||0)+')</option>';});$('#zone').html(h).val(selected);});}
 function showZoneDetails(){if(!zoneId()){mdui.alert('Select a Zone');return;}req('GET',base+'/zone',{zone_id:zoneId()},function(r){var z=r.zone||{},ids=[],scopes=((z.EffectiveScopes||{}).EffectiveScope)||[];if(!Array.isArray(scopes)){scopes=[scopes];}scopes.forEach(function(s){var a=((s.Scopes||{}).Scope)||[];ids=ids.concat(Array.isArray(a)?a:[a]);});$('#zone_remark').val(z.Remark||'');$('#proxy_pattern').val(String(z.ProxyPattern||'zone').toLowerCase());$('#account_ids').val(ids.filter(Boolean).join(', '));mdui.updateTextFields();});}
 function addZone(){req('POST',base+'/zone',{zone_name:$('#zone_name').val(),proxy_pattern:$('#proxy_pattern').val()},function(r){mdui.snackbar('Zone created: '+(r.zone_id||''));$('#zone_name').val('');loadZones();});}

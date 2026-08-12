@@ -11,6 +11,7 @@ class AlibabaHttpDnsZone
 {
     private const VERSION = '2015-01-09';
     private const ENDPOINT = 'alidns.aliyuncs.com';
+    private const SCHEME = 'https';
 
     public function __construct(private AlibabaAccount $account)
     {
@@ -19,7 +20,7 @@ class AlibabaHttpDnsZone
     public function connectionInfo(): array
     {
         $zones = $this->zones();
-        return ['endpoint' => self::ENDPOINT, 'proxy' => ProxyController::getProxyLabelForAccount($this->account), 'zone_count' => count($zones)];
+        return ['endpoint' => self::SCHEME . '://' . self::ENDPOINT, 'proxy' => ProxyController::getProxyLabelForAccount($this->account), 'zone_count' => count($zones)];
     }
 
     public function zones(): array
@@ -119,7 +120,16 @@ class AlibabaHttpDnsZone
         $proxyUrl = ProxyController::getProxyUrlForAccount($this->account);
         if ($proxyUrl !== null) { $client->proxy($proxyUrl); }
         $client->asDefaultClient();
-        return AlibabaCloud::rpc()->product('Alidns')->version(self::VERSION)->action($action)->method('POST')->host(self::ENDPOINT)->options(['query' => $query])->request()->toArray();
+        return AlibabaCloud::rpc()
+            ->product('Alidns')
+            ->scheme(self::SCHEME)
+            ->version(self::VERSION)
+            ->action($action)
+            ->method('POST')
+            ->host(self::ENDPOINT)
+            ->options(['query' => $query])
+            ->request()
+            ->toArray();
     }
 
     private function allPages(string $action, array $query, array $paths): array

@@ -87,7 +87,7 @@ class UserAlibaba extends UserBase
 
     private function api(int $id, callable $callback)
     {
-        try { $data = $callback(new AlibabaHttpDnsZone($this->account($id))); return json(['status' => '1', 'title' => 'Success', 'content' => 'Operation completed'] + $data); }
+        try { $data = $callback(new AlibabaHttpDnsZone($this->account($id))); return json(['status' => '1', 'title' => '操作成功', 'content' => 'Alibaba Cloud 操作已完成'] + $data); }
         catch (\Throwable $e) { return $this->failure($e); }
     }
 
@@ -109,5 +109,14 @@ class UserAlibaba extends UserBase
 
     private function recordInput(): array { return ['rr' => input('rr/s'), 'type' => input('type/s'), 'value' => input('value/s'), 'ttl' => input('ttl/d', 60), 'line' => input('line/s', 'default'), 'weight' => input('weight/d', 1), 'weight_status' => input('weight_status/s', 'keep'), 'priority' => input('priority/d', 1), 'remark' => input('remark/s', '')]; }
     private function required(string $name): string { $value = trim((string) input($name . '/s')); if ($value === '') { throw new \InvalidArgumentException($name . ' is required'); } return $value; }
-    private function failure(\Throwable $e) { return json(Tools::msg('0', '请求失败', $e->getMessage())); }
+    private function failure(\Throwable $e)
+    {
+        $message = $e->getMessage();
+        if (stripos($message, 'InvalidProtocol.NeedSsl') !== false) {
+            $message = 'Alibaba Cloud API 要求使用 HTTPS。请更新面板代码后重试。原始错误：' . $message;
+        } elseif (preg_match('/(?:Forbidden\.RAM|NoPermission|Forbidden|Unauthorized)/i', $message)) {
+            $message = 'RAM 权限不足。请给这个 AccessKey 所属的 RAM 用户绑定 AliyunPubDNSFullAccess（pubdns:*）。原始错误：' . $message;
+        }
+        return json(Tools::msg('0', 'Alibaba Cloud 请求失败', $message));
+    }
 }

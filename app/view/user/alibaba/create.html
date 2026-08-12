@@ -7,7 +7,7 @@
 <div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">AccessKey Secret</label><input type="password" class="mdui-textfield-input" id="access_key_secret"></div>
 <div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">备注</label><input class="mdui-textfield-input" id="remark"></div>
 <label>绑定代理</label><select id="proxy_id" class="mdui-select" mdui-select><option value="0">不使用代理</option><option value="-1">跟随默认代理</option>{volist name="proxies" id="proxy"}<option value="{$proxy.id}">{$proxy.name}（{if $proxy.source_type == 'api'}API 动态{else /}{$proxy.address}:{$proxy.port}{/if}）</option>{/volist}</select>
-<p class="mdui-text-color-grey">保存时会通过所选代理连接 alidns.aliyuncs.com 验证 AccessKey 和 HTTPDNS 权限。凭据仅保存在服务器数据库中，不会在页面中回显 Secret。</p>
+<p class="mdui-text-color-grey">保存时会通过所选代理以 HTTPS 连接 <code>alidns.aliyuncs.com</code>，验证 AccessKey 及 HTTPDNS 内置权威 Zone 权限。RAM 用户请绑定 <code>AliyunPubDNSFullAccess</code>（<code>pubdns:*</code>）；凭据仅保存在服务器数据库中，不会在页面中回显 Secret。</p>
 </div><div class="mdui-card-actions"><button class="mdui-btn mdui-color-indigo" onclick="saveAccount()">验证并保存</button><a class="mdui-btn" href="/user/alibaba">取消</a></div></div>
 </div></main>
 <script>function saveAccount(){$.ajax({method:'POST',url:'/user/alibaba',data:{name:$('#name').val(),access_key_id:$('#access_key_id').val(),access_key_secret:$('#access_key_secret').val(),remark:$('#remark').val(),proxy_id:$('#proxy_id').val()},dataType:'json',success:function(r){mdui.alert(r.content,r.title);if(r.status==='1'){setTimeout(function(){location='/user/alibaba';},800);}}});}</script>
