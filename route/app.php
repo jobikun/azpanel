@@ -83,6 +83,21 @@ Route::get('/user/server/azure/rule/log',         'UserAzureServerRule/log');
 Route::resource('/user/aws',                      'UserAws');
 Route::post('/user/aws/search',                   'UserAws/searchAccount');
 
+Route::get('/user/alibaba/:id/httpdns',                  'UserAlibaba/manage');
+Route::get('/user/alibaba/:id/httpdns/zones',            'UserAlibaba/zones');
+Route::get('/user/alibaba/:id/httpdns/connection',       'UserAlibaba/connection');
+Route::get('/user/alibaba/:id/httpdns/zone',             'UserAlibaba/zone');
+Route::post('/user/alibaba/:id/httpdns/zone',            'UserAlibaba/addZone');
+Route::put('/user/alibaba/:id/httpdns/zone',             'UserAlibaba/updateZone');
+Route::put('/user/alibaba/:id/httpdns/zone/scope',       'UserAlibaba/scope');
+Route::delete('/user/alibaba/:id/httpdns/zone',          'UserAlibaba/deleteZone');
+Route::get('/user/alibaba/:id/httpdns/records',          'UserAlibaba/records');
+Route::post('/user/alibaba/:id/httpdns/records',         'UserAlibaba/saveRecord');
+Route::put('/user/alibaba/:id/httpdns/records',          'UserAlibaba/updateRecord');
+Route::patch('/user/alibaba/:id/httpdns/records/status', 'UserAlibaba/recordStatus');
+Route::delete('/user/alibaba/:id/httpdns/records',       'UserAlibaba/deleteRecord');
+Route::resource('/user/alibaba',                         'UserAlibaba');
+
 // Aws 服务器
 Route::get('/user/server/aws/cached',             'UserAwsServer/cached');
 Route::post('/user/server/aws/remark',            'UserAwsServer/remark');
@@ -133,20 +148,6 @@ Route::put('/admin/setting',                      'AdminSetting/baseSave');
 // 解析
 Route::get('/admin/setting/resolv',               'AdminSetting/resolvIndex');
 Route::put('/admin/setting/resolv',               'AdminSetting/resolvSave');
-
-Route::get('/admin/httpdns',                       'AdminHttpDns/index');
-Route::get('/admin/httpdns/zones',                 'AdminHttpDns/zones');
-Route::get('/admin/httpdns/connection',            'AdminHttpDns/connection');
-Route::get('/admin/httpdns/zone',                  'AdminHttpDns/zone');
-Route::post('/admin/httpdns/zone',                 'AdminHttpDns/addZone');
-Route::put('/admin/httpdns/zone',                  'AdminHttpDns/updateZone');
-Route::put('/admin/httpdns/zone/scope',            'AdminHttpDns/scope');
-Route::delete('/admin/httpdns/zone',               'AdminHttpDns/deleteZone');
-Route::get('/admin/httpdns/records',               'AdminHttpDns/records');
-Route::post('/admin/httpdns/records',              'AdminHttpDns/saveRecord');
-Route::put('/admin/httpdns/records',               'AdminHttpDns/updateRecord');
-Route::patch('/admin/httpdns/records/status',       'AdminHttpDns/status');
-Route::delete('/admin/httpdns/records',             'AdminHttpDns/deleteRecord');
 
 // 邮件
 Route::get('/admin/setting/email',                'AdminSetting/emailIndex');

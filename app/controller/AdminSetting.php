@@ -146,7 +146,6 @@ class AdminSetting extends AdminBase
     public function resolvIndex()
     {
         View::assign('config', Config::group('resolv'));
-        View::assign('proxies', ProxyController::getProxyOptionsForUser());
         return View::fetch('../app/view/admin/setting/resolv.html');
     }
 
@@ -159,29 +158,6 @@ class AdminSetting extends AdminBase
             $setting->value = input($item);
             $setting->save();
         }
-
-        $proxyId = ProxyController::normalizeBoundProxyId(input('ali_httpdns_proxy_id', 0));
-        $proxySetting = Config::where('item', 'ali_httpdns_proxy_id')->find();
-        if ($proxySetting === null) {
-            $proxySetting = new Config();
-            $proxySetting->item = 'ali_httpdns_proxy_id';
-            $proxySetting->class = 'resolv';
-            $proxySetting->default_value = '0';
-            $proxySetting->type = 'int';
-        }
-        $proxySetting->value = (string) $proxyId;
-        $proxySetting->save();
-
-        $ownerSetting = Config::where('item', 'ali_httpdns_proxy_user_id')->find();
-        if ($ownerSetting === null) {
-            $ownerSetting = new Config();
-            $ownerSetting->item = 'ali_httpdns_proxy_user_id';
-            $ownerSetting->class = 'resolv';
-            $ownerSetting->default_value = '0';
-            $ownerSetting->type = 'int';
-        }
-        $ownerSetting->value = (string) session('user_id');
-        $ownerSetting->save();
 
         return json(Tools::msg('1', '保存结果', '保存成功'));
     }
