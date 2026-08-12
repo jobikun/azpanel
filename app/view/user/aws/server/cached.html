@@ -1,17 +1,23 @@
 {include file="../app/view/user/header.html" title="AWS 缓存虚拟机" /}
 
-<main class="az-main">
+<main class="az-main az-cloud-page az-provider-aws">
     <div class="az-page-head">
-        <div>
-            <h1 class="az-page-title">AWS 缓存虚拟机</h1>
-            <p class="az-page-subtitle">展示已加载并缓存到本地的 EC2 实例（供 cloudflare_dns 拉取），无需实时调用 AWS。</p>
+        <div class="az-page-heading">
+            <span class="az-provider-icon"><i class="mdui-icon material-icons">storage</i></span>
+            <div>
+                <p class="az-page-kicker">Amazon EC2</p>
+                <h1 class="az-page-title">缓存虚拟机</h1>
+                <p class="az-page-subtitle">展示已缓存到本地的 EC2 实例，无需每次实时调用 AWS。</p>
+            </div>
         </div>
         <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/server/aws">
             <i class="mdui-icon material-icons">cloud_download</i>&nbsp;去实时列表加载
         </a>
     </div>
 
-    <div class="mdui-table-fluid-fixed">
+    <section class="az-data-card">
+        <div class="az-data-head"><div><h2 class="az-data-title">已同步实例 <span class="az-count-badge" data-cloud-count>0</span></h2><p class="az-data-subtitle">缓存数据用于快速管理；“同步”可重新获取云端状态。</p></div></div>
+        <div class="mdui-table-fluid-fixed">
         <table id="list" class="mdui-table" style="border: none;">
             <thead>
                 <tr>
@@ -63,7 +69,8 @@
                 {/volist}
             </tbody>
         </table>
-    </div>
+        </div>
+    </section>
 
     <div class="mdui-m-t-2"></div>
 </main>

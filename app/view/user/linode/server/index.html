@@ -1,55 +1,52 @@
 {include file="../app/view/user/header.html" title="Linode 虚拟机" /}
 
-<main class="az-main">
+<main class="az-main az-cloud-page az-provider-linode">
     <div class="az-page-head">
-        <div>
-            <h1 class="az-page-title">Linode 虚拟机</h1>
-            <p class="az-page-subtitle">加载实例列表，并执行开机、关机、重启、删除。</p>
+        <div class="az-page-heading">
+            <span class="az-provider-icon"><i class="mdui-icon material-icons">developer_board</i></span>
+            <div>
+                <p class="az-page-kicker">Akamai Cloud / Linode</p>
+                <h1 class="az-page-title">Linode 虚拟机</h1>
+                <p class="az-page-subtitle">加载实例列表，并执行电源和删除操作。</p>
+            </div>
         </div>
         <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/server/linode/create">
             <i class="mdui-icon material-icons">add</i>&nbsp;创建虚拟机
         </a>
     </div>
 
-    <div class="mdui-rows">
-        <div class="mdui-col-sm-12 mdui-col-md-4">
-            <div class="mdui-m-t-2">
-                账户：<select id="account" class="mdui-select" mdui-select>
+    <div class="az-toolbar-card">
+        <div class="az-toolbar-layout"><div class="az-toolbar-fields">
+            <label class="az-field"><span class="az-field-label">账户</span><select id="account" class="az-native-select">
                     {volist name="accounts" id="account"}
                     <option value="{$account.id}">{$account.label}</option>
                     {/volist}
-                </select>
-            </div>
-        </div>
-        <div class="mdui-col-sm-12 mdui-col-md-4">
-            <div class="mdui-m-t-2">
-                状态：<select id="status" class="mdui-select" mdui-select>
+            </select></label>
+            <label class="az-field"><span class="az-field-label">状态</span><select id="status" class="az-native-select">
                     <option value="all">全部</option>
                     <option value="running">仅运行</option>
-                </select>
-            </div>
-        </div>
-        <div class="mdui-col-sm-12 mdui-col-md-4">
-            <div class="mdui-m-t-2" style="color:#757575;line-height:36px;">
-                所有请求均使用账户绑定的代理（可在账户列表页换绑）
-            </div>
-        </div>
+            </select></label>
+        </div><div class="az-toolbar-actions"><button id="load" class="mdui-btn mdui-color-indigo mdui-ripple">
+        <i class="mdui-icon material-icons" style="color:white;">file_download</i>&nbsp;载入表格
+        </button></div></div>
+        <p class="az-toolbar-note">所有请求均使用账户绑定的代理，可在账户列表页换绑。</p>
     </div>
 
-    <button id="load" class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
-        <i class="mdui-icon material-icons" style="color:white;">file_download</i>&nbsp;载入表格
-    </button>
-    <button data-action="boot" class="linode-action mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+    <div class="az-toolbar-card"><div class="az-toolbar-layout"><div><strong class="az-data-title">批量操作</strong><p class="az-toolbar-note">只操作列表中已勾选的实例。</p></div><div class="az-toolbar-actions">
+    <button data-action="boot" class="linode-action mdui-btn az-btn-secondary mdui-ripple">
         <i class="mdui-icon material-icons" style="color:white;">power_settings_new</i>&nbsp;开机
     </button>
-    <button data-action="shutdown" class="linode-action mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+    <button data-action="shutdown" class="linode-action mdui-btn az-btn-secondary mdui-ripple">
         <i class="mdui-icon material-icons" style="color:white;">flash_off</i>&nbsp;关机
     </button>
-    <button data-action="reboot" class="linode-action mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+    <button data-action="reboot" class="linode-action mdui-btn az-btn-secondary mdui-ripple">
         <i class="mdui-icon material-icons" style="color:white;">refresh</i>&nbsp;重启
     </button>
+    </div></div></div>
 
-    <div class="mdui-table-fluid-fixed mdui-m-t-2">
+    <section class="az-data-card">
+        <div class="az-data-head"><div><h2 class="az-data-title">实例列表 <span class="az-count-badge" data-cloud-count>0</span></h2><p class="az-data-subtitle">载入后显示规格、状态、地址与区域。</p></div></div>
+        <div class="mdui-table-fluid-fixed">
         <table id="list" class="mdui-table mdui-table-selectable" style="border: none;">
             <thead>
                 <tr>
@@ -64,9 +61,10 @@
                     <th>操作</th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody><tr class="az-empty-row"><td colspan="9"><div class="az-empty-state"><i class="mdui-icon material-icons">cloud_download</i>选择账户后点击“载入表格”</div></td></tr></tbody>
         </table>
-    </div>
+        </div>
+    </section>
 </main>
 </body>
 

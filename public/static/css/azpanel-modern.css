@@ -96,6 +96,18 @@ a {
     color: #1d4ed8;
 }
 
+.az-drawer .az-nav-active {
+    background: #eaf2ff;
+    color: #1d4ed8 !important;
+    font-weight: 800;
+}
+
+.az-drawer .az-nav-parent-active > .mdui-collapse-item-header {
+    background: #f3f7ff;
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
 .az-drawer .mdui-list-item-icon {
     color: #64748b !important;
 }
@@ -291,6 +303,701 @@ select {
 
 .az-status-off {
     color: #dc2626 !important;
+}
+
+/* Unified cloud workspace: Azure / AWS / Linode */
+.az-cloud-page {
+    --az-provider: #2563eb;
+    --az-provider-soft: #eff6ff;
+    max-width: 1540px;
+}
+
+.az-provider-azure {
+    --az-provider: #0078d4;
+    --az-provider-soft: #eaf5ff;
+}
+
+.az-provider-aws {
+    --az-provider: #d97706;
+    --az-provider-soft: #fff7e8;
+}
+
+.az-provider-linode {
+    --az-provider: #059669;
+    --az-provider-soft: #ecfdf5;
+}
+
+.az-cloud-page .az-page-head {
+    align-items: center;
+}
+
+.az-cloud-page > .mdui-row > [class*="mdui-col-"] {
+    float: none;
+    width: 100%;
+    margin-left: 0;
+}
+
+.az-cloud-page > .mdui-row > [class*="mdui-col-"] > .mdui-container-fluid:first-child {
+    padding: 0;
+}
+
+.az-cloud-page .mdui-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+}
+
+.az-cloud-page p[style*="font-size: 34px"] {
+    margin: 0;
+    color: #0f172a !important;
+    font-size: 30px !important;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.az-cloud-page > .mdui-row > [class*="mdui-col-"] > .mdui-typo {
+    color: #64748b;
+}
+
+.az-cloud-page .mdui-card {
+    overflow: visible;
+    border-color: #dfe6ef;
+    box-shadow: 0 12px 34px rgba(15, 23, 42, .055);
+}
+
+.az-cloud-page .mdui-card > .mdui-card-actions:only-child {
+    border-radius: 9px;
+    background: #fff;
+}
+
+.az-cloud-page .mdui-panel {
+    margin-bottom: 16px;
+    border-color: #dfe6ef;
+}
+
+.az-cloud-page .mdui-textfield-label {
+    color: #64748b;
+}
+
+.az-cloud-page .az-btn-secondary .mdui-icon,
+.az-cloud-page .az-btn-danger .mdui-icon {
+    color: inherit !important;
+}
+
+.az-cloud-page > .mdui-row .mdui-table-fluid-fixed,
+.az-cloud-page > .mdui-row .mdui-table-fluid {
+    margin-top: 16px;
+}
+
+.az-page-heading {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 14px;
+}
+
+.az-provider-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--az-provider) 20%, white);
+    border-radius: 10px;
+    background: var(--az-provider-soft);
+    color: var(--az-provider);
+}
+
+.az-provider-icon .mdui-icon {
+    font-size: 25px;
+}
+
+.az-page-kicker {
+    margin: 0 0 4px;
+    color: var(--az-provider);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.az-head-actions,
+.az-toolbar-actions,
+.az-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.az-btn-secondary {
+    border: 1px solid #d8e0eb;
+    background: #fff;
+    color: #334155;
+}
+
+.az-btn-secondary:hover {
+    border-color: var(--az-provider);
+    background: var(--az-provider-soft);
+    color: var(--az-provider);
+}
+
+.az-btn-danger {
+    border: 1px solid #fecaca;
+    background: #fff;
+    color: #dc2626;
+}
+
+.az-btn-danger:hover {
+    background: #fef2f2;
+}
+
+.az-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.az-stat {
+    min-width: 0;
+    padding: 16px 18px;
+    border: 1px solid #e1e7ef;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .88);
+}
+
+.az-stat-label {
+    display: block;
+    margin-bottom: 7px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.az-stat-value {
+    display: block;
+    overflow: hidden;
+    color: #0f172a;
+    font-size: 23px;
+    font-weight: 800;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.az-stat-note {
+    display: block;
+    margin-top: 5px;
+    overflow: hidden;
+    color: #94a3b8;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.az-toolbar-card,
+.az-data-card,
+.az-form-card,
+.az-info-card {
+    border: 1px solid #dfe6ef;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .92);
+    box-shadow: 0 12px 34px rgba(15, 23, 42, .055);
+}
+
+.az-toolbar-card {
+    margin-bottom: 16px;
+    padding: 16px 18px;
+}
+
+.az-toolbar-layout {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.az-toolbar-fields {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.az-field {
+    min-width: 170px;
+}
+
+.az-field-wide {
+    min-width: 290px;
+}
+
+.az-field-label {
+    display: block;
+    margin-bottom: 7px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.az-field select,
+.az-field > select,
+.az-native-select {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 30px 0 10px;
+    border: 1px solid #d7e0ea;
+    border-radius: 7px;
+    background-color: #fff;
+    color: #1e293b;
+    outline: none;
+}
+
+.az-field select:focus,
+.az-native-select:focus {
+    border-color: var(--az-provider);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--az-provider) 13%, transparent);
+}
+
+.az-toolbar-note {
+    margin: 10px 0 0;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.az-data-card {
+    overflow: hidden;
+}
+
+.az-data-head {
+    display: flex;
+    min-height: 58px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 18px;
+    border-bottom: 1px solid #e6ebf2;
+}
+
+.az-data-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.az-data-subtitle {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.az-count-badge {
+    display: inline-flex;
+    min-width: 28px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    padding: 0 8px;
+    border-radius: 12px;
+    background: var(--az-provider-soft);
+    color: var(--az-provider);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.az-data-card .mdui-table-fluid-fixed,
+.az-data-card .mdui-table-fluid {
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none !important;
+}
+
+.az-data-card .mdui-table th {
+    padding-top: 13px;
+    padding-bottom: 13px;
+    background: #f8fafc;
+}
+
+.az-data-card .mdui-table td {
+    height: 54px;
+}
+
+.az-data-card .mdui-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.az-data-card .mdui-menu {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, .14);
+}
+
+.az-primary-text {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.az-muted-text {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.az-mono {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 12px;
+}
+
+.az-state-running,
+.az-state-warning,
+.az-state-off,
+.az-state-neutral {
+    font-weight: 800;
+}
+
+.az-state-running { color: #059669 !important; }
+.az-state-warning { color: #d97706 !important; }
+.az-state-off { color: #dc2626 !important; }
+.az-state-neutral { color: #475569 !important; }
+
+.az-empty-state {
+    padding: 58px 20px;
+    color: #64748b;
+    text-align: center;
+}
+
+.az-empty-state .mdui-icon {
+    display: block;
+    margin-bottom: 8px;
+    color: #94a3b8;
+    font-size: 38px;
+}
+
+.az-form-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+    gap: 18px;
+}
+
+.az-form-card {
+    overflow: visible;
+    padding: 8px 22px 22px;
+}
+
+.az-form-card .mdui-container {
+    width: auto;
+    padding: 0;
+}
+
+.az-form-section {
+    padding: 18px 0 8px;
+    border-bottom: 1px solid #edf1f5;
+}
+
+.az-form-section:last-child {
+    border-bottom: 0;
+}
+
+.az-section-heading {
+    margin: 0 0 3px;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.az-section-copy {
+    margin: 0 0 12px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.az-form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 16px -22px -22px;
+    padding: 14px 22px;
+    border-top: 1px solid #e5eaf0;
+    border-radius: 0 0 9px 9px;
+    background: rgba(255, 255, 255, .95);
+    backdrop-filter: blur(12px);
+}
+
+.az-help-card {
+    position: sticky;
+    top: 86px;
+    padding: 18px;
+    border: 1px solid #dbe5f0;
+    border-radius: 9px;
+    background: #fff;
+}
+
+.az-help-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.az-help-list {
+    margin: 0;
+    padding-left: 18px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.75;
+}
+
+.az-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.az-info-grid > [class*="mdui-col-"] {
+    float: none;
+    width: auto;
+    margin: 0;
+}
+
+.az-info-card {
+    padding: 18px;
+}
+
+.az-info-card h2,
+.az-info-card h3 {
+    margin: 0 0 14px;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.az-info-row {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.az-info-row:last-child {
+    border-bottom: 0;
+}
+
+.az-info-label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.az-info-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #1e293b;
+}
+
+.az-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.az-cloud-page .mdui-dialog-content h3 {
+    color: #0f172a;
+    font-size: 17px;
+}
+
+@media (max-width: 1100px) {
+    .az-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .az-form-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .az-help-card {
+        position: static;
+    }
+}
+
+@media (max-width: 839px) {
+    .az-cloud-page .az-page-head,
+    .az-toolbar-layout,
+    .az-data-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .az-page-heading {
+        align-items: flex-start;
+    }
+
+    .az-provider-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .az-head-actions,
+    .az-toolbar-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .az-head-actions .mdui-btn,
+    .az-toolbar-actions .mdui-btn,
+    .az-head-actions a {
+        width: auto;
+        margin: 0;
+    }
+
+    .az-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .az-stat {
+        padding: 13px 14px;
+    }
+
+    .az-stat-value {
+        font-size: 19px;
+    }
+
+    .az-toolbar-fields,
+    .az-field,
+    .az-field-wide {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .az-data-card {
+        overflow: visible;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .az-data-head {
+        border: 1px solid #dfe6ef;
+        border-radius: 9px;
+        background: #fff;
+    }
+
+    .az-data-card .mdui-table-fluid-fixed,
+    .az-data-card .mdui-table-fluid {
+        overflow: visible;
+        background: transparent;
+    }
+
+    .az-responsive-table,
+    .az-responsive-table tbody,
+    .az-responsive-table tr,
+    .az-responsive-table td {
+        display: block;
+        width: auto;
+    }
+
+    .az-responsive-table thead {
+        display: none;
+    }
+
+    .az-responsive-table tbody tr {
+        margin: 10px 0;
+        padding: 8px 14px;
+        border: 1px solid #dfe6ef;
+        border-radius: 9px;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+    }
+
+    .az-responsive-table tbody tr.az-empty-row {
+        display: table-row;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .az-responsive-table .az-empty-row td {
+        display: table-cell;
+        padding: 0 !important;
+    }
+
+    .az-responsive-table .az-empty-row td::before {
+        display: none;
+    }
+
+    .az-responsive-table tbody tr.mdui-table-row-selected {
+        border-color: var(--az-provider);
+        background: var(--az-provider-soft);
+    }
+
+    .az-responsive-table td {
+        display: grid;
+        min-height: 0 !important;
+        grid-template-columns: 92px minmax(0, 1fr);
+        align-items: start;
+        gap: 8px;
+        padding: 8px 0 !important;
+        border: 0 !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+    }
+
+    .az-responsive-table td::before {
+        content: attr(data-label);
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .az-responsive-table td:first-child {
+        padding-top: 5px !important;
+    }
+
+    .az-responsive-table .mdui-btn {
+        margin: 2px 4px 2px 0;
+    }
+
+    .az-form-card {
+        padding: 6px 16px 18px;
+    }
+
+    .az-form-actions {
+        margin-right: -16px;
+        margin-bottom: -18px;
+        margin-left: -16px;
+        padding-right: 16px;
+        padding-left: 16px;
+    }
+
+    .az-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .az-info-row {
+        grid-template-columns: 100px minmax(0, 1fr);
+    }
 }
 
 /* HTTPDNS workspace */

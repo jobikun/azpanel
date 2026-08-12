@@ -1,14 +1,18 @@
 {include file="../app/view/user/header.html" title="添加 Linode 账户" /}
 
-<main class="az-main">
+<main class="az-main az-cloud-page az-provider-linode">
     <div class="az-page-head">
-        <div>
-            <h1 class="az-page-title">添加 Linode 账户</h1>
-            <p class="az-page-subtitle">使用 Linode Personal Access Token 接入账户。</p>
+        <div class="az-page-heading">
+            <span class="az-provider-icon"><i class="mdui-icon material-icons">person_add</i></span>
+            <div>
+                <p class="az-page-kicker">Akamai Cloud / Linode</p>
+                <h1 class="az-page-title">添加 Linode 账户</h1>
+                <p class="az-page-subtitle">使用 Personal Access Token 接入账户。</p>
+            </div>
         </div>
     </div>
 
-    <div class="mdui-card mdui-m-t-2" style="overflow: visible">
+    <div class="mdui-card az-form-card" style="overflow: visible">
         <div class="mdui-card-content mdui-container">
             <div class="mdui-col-sm-12 mdui-col-md-6">
                 <div class="mdui-textfield mdui-textfield-floating-label">
@@ -32,17 +36,17 @@
                 </div>
             </div>
             <div class="mdui-col-sm-12 mdui-m-t-2">
-                绑定代理（此账户的所有操作都将默认使用该代理，之后可在列表页换绑）：<select id="proxy_mode" style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
+                <label class="az-field"><span class="az-field-label">账户默认代理（之后可在账户列表更换）</span><select id="proxy_mode" class="az-native-select">
                     <option value="none">不使用代理</option>
                     <option value="default">使用默认代理池</option>
                     {volist name="proxies" id="proxy"}
                     <option value="pool:{$proxy.id}">{$proxy.name} - [{:strtoupper($proxy.protocol)}{if $proxy.source_type == 'api'} API{/if}] {if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}{if $proxy.is_default == 1}（默认）{/if}</option>
                     {/volist}
-                </select>
+                </select></label>
             </div>
         </div>
+        <div class="az-form-actions"><a class="mdui-btn az-btn-secondary mdui-ripple" href="/user/linode">取消</a><button id="save" class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">保存账户</button></div>
     </div>
-    <button id="save" class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple">保存</button>
 </main>
 </body>
 

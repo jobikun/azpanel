@@ -1,18 +1,19 @@
 {include file="../app/view/user/header.html" title="AWS 区域配额" /}
 
-<div class="mdui-container-fluid">
+<div class="mdui-container-fluid az-main az-cloud-page az-provider-aws">
     <div class="mdui-row">
         <div
             class="mdui-col-xs-12 mdui-col-md-{:think\\facade\\Env::get('theme.CARD_WIDTH')} mdui-col-offset-md-{:think\\facade\\Env::get('theme.CARD_RIGHT_OFFSET')}">
             <div class="mdui-container-fluid">
-                <p style="color: #3F51B5; font-size: 34px">AWS 区域配额</p>
+                <p class="az-page-kicker">Amazon Web Services</p>
+                <p style="color: #3F51B5; font-size: 34px">区域配额与可用状态</p>
             </div>
 
             <div class="mdui-typo">
                 <p>你可以在这里查看此账户每个区域的配额。带「默认禁用」标记的区域需要先申请开通后才能使用，开通通常在几分钟内生效</p>
             </div>
 
-            <div class="card-body mdui-table-fluid-fixed mdui-m-t-2">
+            <section class="az-data-card"><div class="az-data-head"><div><h2 class="az-data-title">区域列表</h2><p class="az-data-subtitle">逐区域查询配额、检查状态或启用默认禁用区域。</p></div></div><div class="mdui-table-fluid-fixed">
                 <table class="mdui-table" style="border: none;">
                     <thead>
                         <tr>
@@ -55,7 +56,7 @@
                         {/volist}
                     </tbody>
                 </table>
-            </div>
+            </div></section>
 
             <div class="mdui-m-t-2"></div>
 

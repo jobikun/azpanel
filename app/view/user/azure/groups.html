@@ -1,18 +1,19 @@
 {include file="../app/view/user/header.html" title="Azure 资源组" /}
 
-<div class="mdui-container-fluid">
+<div class="mdui-container-fluid az-main az-cloud-page az-provider-azure">
     <div class="mdui-row">
         <div
             class="mdui-col-xs-12 mdui-col-md-{:think\\facade\\Env::get('theme.CARD_WIDTH')} mdui-col-offset-md-{:think\\facade\\Env::get('theme.CARD_RIGHT_OFFSET')}">
             <div class="mdui-container-fluid">
-                <p style="color: #3F51B5; font-size: 34px">Azure 资源组</p>
+                <p class="az-page-kicker">Microsoft Azure</p>
+                <p style="color: #3F51B5; font-size: 34px">资源组内容</p>
             </div>
 
             <div class="mdui-typo">
                 <p>你可以在这里查看此资源组下所有资源</p>
             </div>
 
-            <div class="card-body mdui-table-fluid-fixed mdui-m-t-2">
+            <section class="az-data-card"><div class="az-data-head"><div><h2 class="az-data-title">组内资源</h2></div></div><div class="mdui-table-fluid-fixed">
                 <table class="mdui-table" style="border: none;">
                     <thead>
                         <tr>
@@ -35,7 +36,7 @@
                         {/foreach}
                     </tbody>
                 </table>
-            </div>
+            </div></section>
 
             <div class="mdui-m-t-2"></div>
 

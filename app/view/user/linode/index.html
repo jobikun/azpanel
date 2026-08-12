@@ -1,17 +1,30 @@
 {include file="../app/view/user/header.html" title="Linode 账户" /}
 
-<main class="az-main">
+<main class="az-main az-cloud-page az-provider-linode">
     <div class="az-page-head">
-        <div>
-            <h1 class="az-page-title">Linode 账户</h1>
-            <p class="az-page-subtitle">管理 Linode Token 和账户状态。账户的所有操作（刷新 / 创建 / 电源 / 删除）都会走绑定的代理。</p>
+        <div class="az-page-heading">
+            <span class="az-provider-icon"><i class="mdui-icon material-icons">dns</i></span>
+            <div>
+                <p class="az-page-kicker">Akamai Cloud / Linode</p>
+                <h1 class="az-page-title">Linode 账户</h1>
+                <p class="az-page-subtitle">管理 Token、账户资料和默认代理。</p>
+            </div>
         </div>
         <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/linode/create">
             <i class="mdui-icon material-icons">add</i>&nbsp;添加账户
         </a>
     </div>
 
-    <div class="mdui-table-fluid-fixed mdui-m-t-2">
+    <div class="az-stats">
+        <div class="az-stat"><span class="az-stat-label">账户总数</span><strong class="az-stat-value" data-stat="rows">0</strong><span class="az-stat-note">已接入的 Linode 账户</span></div>
+        <div class="az-stat"><span class="az-stat-label">已同步账户</span><strong class="az-stat-value az-state-running">可管理</strong><span class="az-stat-note">账户资料由 API 获取</span></div>
+        <div class="az-stat"><span class="az-stat-label">代理支持</span><strong class="az-stat-value">账户级</strong><span class="az-stat-note">所有操作沿用绑定代理</span></div>
+        <div class="az-stat"><span class="az-stat-label">凭据类型</span><strong class="az-stat-value">Token</strong><span class="az-stat-note">每位用户独立保存</span></div>
+    </div>
+
+    <section class="az-data-card">
+        <div class="az-data-head"><div><h2 class="az-data-title">账户列表 <span class="az-count-badge" data-cloud-count>0</span></h2><p class="az-data-subtitle">直接刷新资料、创建实例或更换该账户的代理。</p></div></div>
+        <div class="mdui-table-fluid-fixed">
         <table class="mdui-table" style="border: none;">
             <thead>
                 <tr>
@@ -29,10 +42,14 @@
                 {volist name="accounts" id="account"}
                 <tr>
                     <td>
-                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-blue-grey" onclick="refreshAccount({$account.id})">刷新</button>
-                        <a class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-indigo" href="/user/server/linode/create?id={$account.id}">创建</a>
-                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised" onclick="bindProxy({$account.id})">换绑代理</button>
-                        <button class="mdui-btn mdui-btn-dense mdui-btn-raised mdui-color-pink" onclick="deleteAccount({$account.id})">删除</button>
+                        <button class="mdui-btn mdui-btn-dense mdui-color-indigo mdui-ripple" mdui-menu="{target: '#linode-action-{$account.id}', fixed: true}">操作</button>
+                        <ul class="mdui-menu" id="linode-action-{$account.id}">
+                            <li class="mdui-menu-item"><a class="mdui-ripple" onclick="refreshAccount({$account.id})"><i class="mdui-menu-item-icon mdui-icon material-icons">refresh</i>刷新资料</a></li>
+                            <li class="mdui-menu-item"><a class="mdui-ripple" href="/user/server/linode/create?id={$account.id}"><i class="mdui-menu-item-icon mdui-icon material-icons">add_to_queue</i>创建虚拟机</a></li>
+                            <li class="mdui-menu-item"><a class="mdui-ripple" onclick="bindProxy({$account.id})"><i class="mdui-menu-item-icon mdui-icon material-icons">settings_ethernet</i>更换代理</a></li>
+                            <li class="mdui-divider"></li>
+                            <li class="mdui-menu-item"><a class="mdui-ripple mdui-text-color-red" onclick="deleteAccount({$account.id})"><i class="mdui-menu-item-icon mdui-icon material-icons">delete_forever</i>删除账户</a></li>
+                        </ul>
                     </td>
                     <td>{$total--}</td>
                     <td>{$account.label}</td>
@@ -45,7 +62,8 @@
                 {/volist}
             </tbody>
         </table>
-    </div>
+        </div>
+    </section>
 
     <div id="bind-proxy-template" style="display:none">
         <select class="bind-proxy-select" style="width:100%;height:36px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">

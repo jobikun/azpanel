@@ -1,10 +1,14 @@
 {include file="../app/view/user/header.html" title="AWS 虚拟机列表" /}
 
-<main class="az-main">
+<main class="az-main az-cloud-page az-provider-aws">
     <div class="az-page-head">
-        <div>
-            <h1 class="az-page-title">AWS 虚拟机</h1>
-            <p class="az-page-subtitle">按账号和区域加载 EC2 实例，批量启动、停止或重启。</p>
+        <div class="az-page-heading">
+            <span class="az-provider-icon"><i class="mdui-icon material-icons">memory</i></span>
+            <div>
+                <p class="az-page-kicker">Amazon EC2</p>
+                <h1 class="az-page-title">AWS 虚拟机</h1>
+                <p class="az-page-subtitle">按账户和区域加载实例，并执行批量电源与网络操作。</p>
+            </div>
         </div>
         <a class="mdui-btn mdui-btn-raised mdui-color-indigo mdui-ripple" href="/user/server/aws/create">
             <i class="mdui-icon material-icons">add</i>&nbsp;创建虚拟机
@@ -15,60 +19,48 @@
                 <p>你可以在这里查看 AWS 账户下每个区域的虚拟机</p>
             </div> -->
 
-            <div class="mdui-rows">
-                <div class="mdui-col-sm-12 mdui-col-md-4">
-                    <div class="mdui-m-t-2">
-                        归属：<select id="account" class="mdui-select" mdui-select>
+            <div class="az-toolbar-card">
+                <div class="az-toolbar-layout"><div class="az-toolbar-fields">
+                    <label class="az-field"><span class="az-field-label">归属账户</span><select id="account" class="az-native-select">
                             {volist name="accounts" id="account"}
                             <option value="{$account->id}">{$account->email}</option>
                             {/volist}
-                        </select>
-                    </div>
-                </div>
-                <div class="mdui-col-sm-12 mdui-col-md-4">
-                    <div class="mdui-m-t-2">
-                        地区：<select id="location" class="mdui-select" mdui-select>
+                    </select></label>
+                    <label class="az-field"><span class="az-field-label">区域</span><select id="location" class="az-native-select">
                             {volist name="locations" id="location"}
                             <option value="{$key}">{$location}</option>
                             {/volist}
-                        </select>
-                    </div>
-                </div>
-                <div class="mdui-col-sm-12 mdui-col-md-4">
-                    <div class="mdui-m-t-2">
-                        状态：<select id="status" class="mdui-select" mdui-select>
+                    </select></label>
+                    <label class="az-field"><span class="az-field-label">状态</span><select id="status" class="az-native-select">
                             <option value="all">所有</option>
                             <option value="running">仅运行</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <button id="view"
-                class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+                    </select></label>
+                </div><div class="az-toolbar-actions"><button id="view" class="mdui-btn mdui-color-indigo mdui-ripple">
                 <i class="mdui-icon material-icons" style="color:white;">file_download</i>&nbsp;载入表格
-            </button>
-            <button id="startInstances"
-                class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+                </button></div></div>
+                <p class="az-toolbar-note">选择账户、区域和状态后载入实例；下方批量操作只影响已勾选行。</p>
+            </div>
+
+            <div class="az-toolbar-card"><div class="az-toolbar-layout"><div><strong class="az-data-title">批量操作</strong><p class="az-toolbar-note">请先在实例列表中勾选目标。</p></div><div class="az-toolbar-actions">
+            <button id="startInstances" class="mdui-btn az-btn-secondary mdui-ripple">
                 <i class="mdui-icon material-icons" style="color:white;">power_settings_new</i>&nbsp;启动
             </button>
-            <button id="stopInstances"
-                class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+            <button id="stopInstances" class="mdui-btn az-btn-secondary mdui-ripple">
                 <i class="mdui-icon material-icons" style="color:white;">flash_off</i>&nbsp;停止
             </button>
-            <button id="rebootInstances"
-                class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+            <button id="rebootInstances" class="mdui-btn az-btn-secondary mdui-ripple">
                 <i class="mdui-icon material-icons" style="color:white;">refresh</i>&nbsp;重启
             </button>
-            <button id="terminateInstances"
-                class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+            <button id="terminateInstances" class="mdui-btn az-btn-danger mdui-ripple">
                 <i class="mdui-icon material-icons" style="color:white;">delete_forever</i>&nbsp;销毁
             </button>
-            <button id="releaseUnusedIps"
-                class="mdui-m-t-2 mdui-btn mdui-btn-raised mdui-btn-dense mdui-ripple mdui-color-blue-grey">
+            <button id="releaseUnusedIps" class="mdui-btn az-btn-danger mdui-ripple">
                 <i class="mdui-icon material-icons" style="color:white;">cleaning_services</i>&nbsp;释放闲置IP
             </button>
-            <div class="mdui-m-t-2"></div>
-            <div class="mdui-table-fluid-fixed">
+            </div></div></div>
+            <section class="az-data-card">
+                <div class="az-data-head"><div><h2 class="az-data-title">实例列表 <span class="az-count-badge" data-cloud-count>0</span></h2><p class="az-data-subtitle">加载后可查看地址、规格、状态和单实例网络操作。</p></div></div>
+                <div class="mdui-table-fluid-fixed">
                 <table id="list" class="mdui-table mdui-table-selectable" style="border: none;">
                     <thead>
                         <tr>
@@ -84,9 +76,11 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <tr class="az-empty-row"><td colspan="9"><div class="az-empty-state"><i class="mdui-icon material-icons">cloud_download</i>选择账户和区域，然后点击“载入表格”</div></td></tr>
                     </tbody>
                 </table>
-            </div>
+                </div>
+            </section>
 
             <div class="mdui-m-t-2"></div>
 </main>

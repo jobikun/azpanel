@@ -1,15 +1,16 @@
 {include file="../app/view/user/header.html" title="AWS 账户添加" /}
 
-<div class="mdui-container-fluid">
+<div class="mdui-container-fluid az-main az-cloud-page az-provider-aws">
     <div class="mdui-row">
         <div
             class="mdui-col-xs-12 mdui-col-md-{:think\\facade\\Env::get('theme.CARD_WIDTH')} mdui-col-offset-md-{:think\\facade\\Env::get('theme.CARD_RIGHT_OFFSET')}">
             <div class="mdui-container-fluid">
-                <p style="color: #3F51B5; font-size: 34px">AWS 账户添加</p>
+                <p class="az-page-kicker">Amazon Web Services</p>
+                <p style="color: #3F51B5; font-size: 34px">添加 AWS 账户</p>
             </div>
 
             <div class="mdui-typo">
-                <p>你可以在这里添加 AWS 账户</p>
+                <p>支持智能识别、单个录入和批量录入 Access Key。</p>
             </div>
 
             <div class="mdui-card mdui-m-t-2" style="overflow: visible">
@@ -120,8 +121,8 @@
 
             <div class="mdui-card mdui-m-t-2">
                 <div class="mdui-card-actions">
-                    <button class="mdui-btn mdui-btn-block mdui-color-indigo mdui-ripple mdui-btn-raised"
-                        id="add">添加</button>
+                    <a class="mdui-btn az-btn-secondary mdui-ripple" href="/user/aws">取消</a>
+                    <button class="mdui-btn mdui-color-indigo mdui-ripple mdui-btn-raised" id="add">保存账户</button>
                 </div>
             </div>
 

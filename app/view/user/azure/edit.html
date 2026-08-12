@@ -1,11 +1,12 @@
 {include file="../app/view/user/header.html" title="编辑账户" /}
 
-<div class="mdui-container-fluid">
+<div class="mdui-container-fluid az-main az-cloud-page az-provider-azure">
     <div class="mdui-row">
         <div
             class="mdui-col-xs-12 mdui-col-md-{:think\\facade\\Env::get('theme.CARD_WIDTH')} mdui-col-offset-md-{:think\\facade\\Env::get('theme.CARD_RIGHT_OFFSET')}">
             <div class="mdui-container-fluid">
-                <p style="color: #3F51B5; font-size: 34px">编辑账户</p>
+                <p class="az-page-kicker">Microsoft Azure</p>
+                <p style="color: #3F51B5; font-size: 34px">编辑 Azure 账户</p>
             </div>
 
             <div class="mdui-typo">
@@ -64,15 +65,15 @@
                         </div>
                     </div>
                     <div class="mdui-col-sm-12 mdui-col-md-12 mdui-m-t-2">
-                        绑定代理（此账户的所有操作都将默认使用该代理）：
+                        <label class="az-field"><span class="az-field-label">账户默认代理（所有操作均使用）</span>
                         <select id="proxy_mode" data-current="{$account.proxy_id}"
-                            style="height:36px;min-width:320px;border:0;border-bottom:1px solid rgba(0,0,0,.42);background:transparent;outline:none">
+                            class="az-native-select">
                             <option value="none">不使用代理</option>
                             <option value="default">使用默认代理池</option>
                             {volist name="proxies" id="proxy"}
                             <option value="pool:{$proxy.id}">{$proxy.name} - [{:strtoupper($proxy.protocol)}{if $proxy.source_type == 'api'} API{/if}] {if $proxy.source_type == 'api'}API{else /}{$proxy.address}:{$proxy.port}{/if}{if $proxy.is_default == 1}（默认）{/if}</option>
                             {/volist}
-                        </select>
+                        </select></label>
                     </div>
                     <div class="mdui-col-sm-12 mdui-col-md-12">
                         <p style="color: #3F51B5; font-size: 18px">操作</p>
@@ -84,8 +85,8 @@
 
             <div class="mdui-card mdui-m-t-2">
                 <div class="mdui-card-actions">
-                    <button class="mdui-btn mdui-btn-block mdui-color-indigo mdui-ripple mdui-btn-raised"
-                        id="update">修改</button>
+                    <a class="mdui-btn az-btn-secondary mdui-ripple" href="/user/azure">取消</a>
+                    <button class="mdui-btn mdui-color-indigo mdui-ripple mdui-btn-raised" id="update">保存修改</button>
                 </div>
             </div>
 

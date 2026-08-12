@@ -1,18 +1,43 @@
 {include file="../app/view/user/header.html" title="AWS 账户列表" /}
 
-<div class="mdui-container-fluid">
-    <div class="mdui-row">
-        <div
-            class="mdui-col-xs-12 mdui-col-md-{:think\\facade\\Env::get('theme.CARD_WIDTH')} mdui-col-offset-md-{:think\\facade\\Env::get('theme.CARD_RIGHT_OFFSET')}">
-            <div class="mdui-container-fluid">
-                <p style="color: #3F51B5; font-size: 34px">AWS 账户列表</p>
+<main class="az-main az-cloud-page az-provider-aws">
+    <div class="az-page-head">
+        <div class="az-page-heading">
+            <span class="az-provider-icon"><i class="mdui-icon material-icons">supervisor_account</i></span>
+            <div>
+                <p class="az-page-kicker">Amazon Web Services</p>
+                <h1 class="az-page-title">AWS 账户</h1>
+                <p class="az-page-subtitle">集中查看账户状态与 EC2 区域配额。</p>
             </div>
+        </div>
+        <div class="az-head-actions">
+            <button class="mdui-btn az-btn-secondary mdui-ripple" mdui-dialog="{target: '#search'}"><i class="mdui-icon material-icons">search</i>&nbsp;筛选</button>
+            <button class="mdui-btn az-btn-secondary mdui-ripple" mdui-dialog="{target: '#refresh'}"><i class="mdui-icon material-icons">refresh</i>&nbsp;批量刷新</button>
+            <a class="mdui-btn mdui-color-indigo mdui-ripple" href="/user/aws/create"><i class="mdui-icon material-icons">add</i>&nbsp;添加账户</a>
+        </div>
+    </div>
 
-            <div class="mdui-typo">
-                <p>你可以在这里查看所有 AWS 账户，鼠标放在状态栏会显示具体的配额信息</p>
+    <div class="az-stats">
+        <div class="az-stat"><span class="az-stat-label">账户总数</span><strong class="az-stat-value" data-stat="rows">0</strong><span class="az-stat-note">当前列表中的 AWS 账户</span></div>
+        <div class="az-stat"><span class="az-stat-label">状态正常</span><strong class="az-stat-value az-state-running" data-stat="healthy">0</strong><span class="az-stat-note">Enabled 账户</span></div>
+        <div class="az-stat"><span class="az-stat-label">需要关注</span><strong class="az-stat-value az-state-warning" data-stat="attention">0</strong><span class="az-stat-note">不可用账户</span></div>
+        <div class="az-stat"><span class="az-stat-label">配额提示</span><strong class="az-stat-value">悬停查看</strong><span class="az-stat-note">状态列包含区域配额</span></div>
+    </div>
+
+    <div class="az-toolbar-card">
+        <div class="az-toolbar-layout">
+            <div><strong class="az-data-title">账户维护</strong><p class="az-toolbar-note">批量刷新会重新同步当前账户状态。</p></div>
+            <div class="az-toolbar-actions">
+                <button class="mdui-btn az-btn-danger mdui-ripple" onclick="deletedAllDisabledAccount()"><i class="mdui-icon material-icons">delete_sweep</i>&nbsp;清理停用账户</button>
             </div>
+        </div>
+    </div>
 
-            <div class="card-body mdui-table-fluid-fixed mdui-m-t-2">
+    <section class="az-data-card">
+        <div class="az-data-head">
+            <div><h2 class="az-data-title">账户列表 <span class="az-count-badge" data-cloud-count>0</span></h2><p class="az-data-subtitle">从“操作”中进入配额、创建实例或编辑账户。</p></div>
+        </div>
+        <div class="mdui-table-fluid-fixed">
                 <table class="mdui-table" style="border: none;">
                     <thead>
                         <tr>
@@ -78,7 +103,8 @@
                         {/volist}
                     </tbody>
                 </table>
-            </div>
+        </div>
+    </section>
 
             <div class="mdui-dialog" id="search" style="overflow: visible">
                 <div class="mdui-dialog-content" style="overflow: visible">
@@ -132,42 +158,10 @@
                 </div>
             </div>
 
-            <div class="mdui-container">
-                <div class="mdui-fab-wrapper" id="fab">
-                    <button class="mdui-fab mdui-ripple mdui-color-pink-accent">
-                        <i class="mdui-icon material-icons">build</i>
-                    </button>
-                    <div class="mdui-fab-dial">
-                        <button class="mdui-fab mdui-fab-mini mdui-ripple mdui-color-red"
-                            onclick="deletedAllDisabledAccount()">
-                            <i class="mdui-icon material-icons">delete</i>
-                        </button>
-                        <button class="mdui-fab mdui-fab-mini mdui-ripple mdui-color-teal"
-                            mdui-dialog="{target: '#search'}">
-                            <i class="mdui-icon material-icons">search</i>
-                        </button>
-                        <button class="mdui-fab mdui-fab-mini mdui-ripple mdui-color-blue-grey"
-                            mdui-dialog="{target: '#refresh'}">
-                            <i class="mdui-icon material-icons">autorenew</i>
-                        </button>
-                        <a class="mdui-fab mdui-fab-mini mdui-ripple mdui-color-indigo" href="/user/aws/create">
-                            <i class="mdui-icon material-icons">add</i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mdui-m-t-2"></div>
-
-        </div>
-    </div>
-    </br />
-</div>
+</main>
 </body>
 
 <script>
-    var inst = new mdui.Fab('#fab');
-
     $('#submit-search').click(function () {
         $.ajax({
             method: 'POST',
