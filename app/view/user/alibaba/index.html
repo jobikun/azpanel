@@ -1,9 +1,9 @@
-{include file="../app/view/user/header.html" title="Alibaba Cloud 账户" /}
+{include file="../app/view/user/header.html" title="阿里云国际账户" /}
 <main class="az-main">
-<div class="az-page-head"><div><h1 class="az-page-title">Alibaba Cloud 国际账户</h1><p class="az-page-subtitle">每个账户独立使用 AccessKey、代理和 HTTPDNS 内置权威 Zone。</p></div>
+<div class="az-page-head"><div><h1 class="az-page-title">阿里云国际账户</h1><p class="az-page-subtitle">每个账户独立使用访问密钥、代理和 HTTPDNS 内置权威域名。</p></div>
 <a class="mdui-btn mdui-btn-raised mdui-color-indigo" href="/user/alibaba/create"><i class="mdui-icon material-icons">add</i> 添加账户</a></div>
-<div class="mdui-table-fluid-fixed"><table class="mdui-table" style="border:none"><thead><tr><th>名称</th><th>AccessKey ID</th><th>代理</th><th>备注</th><th>操作</th></tr></thead><tbody>
-{volist name="accounts" id="account"}<tr><td>{$account.name|htmlspecialchars}</td><td><code>{$account.access_key_id|substr=0,8}…{$account.access_key_id|substr=-4}</code></td><td>{$account.proxy_label|htmlspecialchars}</td><td>{$account.remark|htmlspecialchars}</td><td><a class="mdui-btn mdui-btn-dense mdui-color-indigo" href="/user/alibaba/{$account.id}/httpdns">HTTPDNS</a><a class="mdui-btn mdui-btn-dense" href="/user/alibaba/{$account.id}/edit">编辑</a><button class="mdui-btn mdui-btn-dense mdui-text-color-red" onclick="removeAccount({$account.id})">删除</button></td></tr>{/volist}
+<div class="mdui-table-fluid-fixed"><table class="mdui-table" style="border:none"><thead><tr><th>名称</th><th>访问密钥 ID</th><th>代理</th><th>备注</th><th>操作</th></tr></thead><tbody>
+{volist name="accounts" id="account"}<tr><td>{$account.name|htmlspecialchars}</td><td><code>{$account.access_key_id|substr=0,8}…{$account.access_key_id|substr=-4}</code></td><td>{$account.proxy_label|htmlspecialchars}</td><td>{$account.remark|htmlspecialchars}</td><td><a class="mdui-btn mdui-btn-dense mdui-color-indigo" href="/user/alibaba/{$account.id}/httpdns">内置权威解析</a><a class="mdui-btn mdui-btn-dense" href="/user/alibaba/{$account.id}/edit">编辑</a><button class="mdui-btn mdui-btn-dense mdui-text-color-red" onclick="removeAccount({$account.id})">删除</button></td></tr>{/volist}
 {if $accounts->count() == 0}<tr><td colspan="5">尚未添加阿里云账户</td></tr>{/if}
 </tbody></table></div></main>
 <script>function removeAccount(id){mdui.confirm('只会从面板删除账户，不会删除阿里云资源。是否继续？','删除确认',function(){$.ajax({method:'DELETE',url:'/user/alibaba/'+id,dataType:'json',success:function(r){mdui.alert(r.content,r.title);if(r.status==='1'){setTimeout(function(){location.reload();},800);}}});});}</script>

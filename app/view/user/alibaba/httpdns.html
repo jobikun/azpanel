@@ -1,48 +1,80 @@
-{include file="../app/view/user/header.html" title="HTTPDNS Authoritative Zones" /}
-<main class="az-main"><div class="az-page-head"><div><h1 class="az-page-title">HTTPDNS &#20869;&#32622;&#26435;&#23041;</h1>
-<p class="az-page-subtitle">Account: <strong>{$account.name|htmlspecialchars}</strong> / AccessKey: <code>{$account.access_key_id|substr=0,8}…{$account.access_key_id|substr=-4}</code></p></div><a class="mdui-btn" href="/user/alibaba">返回账户</a></div>
+{include file="../app/view/user/header.html" title="HTTPDNS 内置权威解析" /}
+<main class="az-main">
+<div class="az-page-head"><div><h1 class="az-page-title">HTTPDNS 内置权威解析</h1>
+<p class="az-page-subtitle">账户：<strong>{$account.name|htmlspecialchars}</strong>　访问密钥：<code>{$account.access_key_id|substr=0,8}…{$account.access_key_id|substr=-4}</code></p></div><a class="mdui-btn" href="/user/alibaba">返回账户列表</a></div>
+
+<div class="mdui-card"><div class="mdui-card-content">
 <div class="mdui-chip"><span class="mdui-chip-title" id="connection_status">尚未测试连接</span></div>
-<button class="mdui-btn mdui-btn-dense" onclick="testConnection()">测试 API / 代理</button>
-<div class="mdui-card mdui-m-t-2"><div class="mdui-card-content"><label>Zone / Zone ID</label>
-<select id="zone" class="mdui-select"><option value="">-- Select Zone --</option></select>
-<button class="mdui-btn mdui-color-indigo mdui-m-l-1" onclick="loadZones()">&#21047;&#26032; Zone</button>
-<button class="mdui-btn" onclick="showZoneDetails()">Zone &#35774;&#32622;</button></div></div>
-<div class="mdui-card mdui-m-t-2"><div class="mdui-card-content"><h3>Zone &#31649;&#29702;</h3><div class="mdui-row">
-<div class="mdui-col-md-3"><div class="mdui-textfield"><label class="mdui-textfield-label">New Zone name</label><input class="mdui-textfield-input" id="zone_name"></div></div>
-<div class="mdui-col-md-2"><label>Subdomain fallback</label><select id="proxy_pattern" class="mdui-select"><option value="zone">Disabled (NXDOMAIN)</option><option value="record">Enabled (recursive)</option></select></div>
-<div class="mdui-col-md-3"><div class="mdui-textfield"><label class="mdui-textfield-label">Remark</label><input class="mdui-textfield-input" id="zone_remark"></div></div>
-<div class="mdui-col-md-4"><div class="mdui-textfield"><label class="mdui-textfield-label">Effective HTTPDNS Account IDs</label><input class="mdui-textfield-input" id="account_ids" placeholder="100001, 100002"></div></div></div>
-<button class="mdui-btn mdui-color-indigo" onclick="addZone()">Create Zone</button><button class="mdui-btn" onclick="updateZone()">Update settings</button><button class="mdui-btn" onclick="updateScope()">Update effective scope</button><button class="mdui-btn mdui-text-color-red" onclick="deleteZone()">Delete Zone</button>
-<p class="mdui-text-color-grey">Set the effective Account ID only after records are ready. Clearing the field removes the effective scope.</p></div></div>
-<div class="mdui-card mdui-m-t-2"><div class="mdui-card-content"><h3 id="form-title">&#28155;&#21152;&#35760;&#24405;</h3><input type="hidden" id="record_id"><div class="mdui-row">
-<div class="mdui-col-md-2"><div class="mdui-textfield"><label class="mdui-textfield-label">RR</label><input class="mdui-textfield-input" id="rr" placeholder="@ / www / *"></div></div>
-<div class="mdui-col-md-2"><label>Type</label><select id="type" class="mdui-select"><option>A</option><option>AAAA</option><option>CNAME</option><option>TXT</option><option>MX</option><option>SRV</option></select></div>
-<div class="mdui-col-md-3"><div class="mdui-textfield"><label class="mdui-textfield-label">Value</label><input class="mdui-textfield-input" id="value"></div></div>
-<div class="mdui-col-md-2"><label>TTL</label><select id="ttl" class="mdui-select"><option>5</option><option>30</option><option selected>60</option><option>3600</option><option>43200</option><option>86400</option></select></div>
-<div class="mdui-col-md-1"><div class="mdui-textfield"><label class="mdui-textfield-label">Weight</label><input type="number" class="mdui-textfield-input" id="weight" value="1" min="1" max="100"></div></div>
-<div class="mdui-col-md-1"><div class="mdui-textfield"><label class="mdui-textfield-label">MX Priority</label><input type="number" class="mdui-textfield-input" id="priority" value="1" min="1" max="99"></div></div>
-<div class="mdui-col-md-2"><div class="mdui-textfield"><label class="mdui-textfield-label">Line / RequestSource</label><input class="mdui-textfield-input" id="line" value="default"></div></div>
-<div class="mdui-col-md-2"><div class="mdui-textfield"><label class="mdui-textfield-label">Remark</label><input class="mdui-textfield-input" id="remark"></div></div></div>
-<label>Weighted response for this RR / type / line</label><select id="weight_status" class="mdui-select"><option value="keep">Keep current setting</option><option value="enable">Enable</option><option value="disable">Disable</option></select>
-<button class="mdui-btn mdui-color-indigo" onclick="saveRecord()">&#20445;&#23384;</button><button class="mdui-btn" onclick="resetForm()">&#21462;&#28040;&#32534;&#36753;</button></div></div>
-<div class="mdui-table-fluid mdui-m-t-2"><table class="mdui-table"><thead><tr><th>RR</th><th>Type</th><th>Value</th><th>TTL</th><th>Line</th><th>Status</th><th>Record ID</th><th>Actions</th></tr></thead><tbody id="records"><tr><td colspan="8">Select a Zone</td></tr></tbody></table></div>
+<button class="mdui-btn mdui-btn-dense" onclick="testConnection()">测试接口与代理</button>
+</div></div>
+
+<div class="mdui-card mdui-m-t-2"><div class="mdui-card-content">
+<label>权威域名（Zone）/ 域名 ID</label>
+<select id="zone" class="mdui-select"><option value="">请选择权威域名</option></select>
+<button class="mdui-btn mdui-color-indigo mdui-m-l-1" onclick="loadZones()">刷新域名列表</button>
+<button class="mdui-btn" onclick="showZoneDetails()">读取域名设置</button>
+</div></div>
+
+<div class="mdui-card mdui-m-t-2"><div class="mdui-card-content"><h3>权威域名管理</h3><div class="mdui-row">
+<div class="mdui-col-md-3"><div class="mdui-textfield"><label class="mdui-textfield-label">新建权威域名</label><input class="mdui-textfield-input" id="zone_name" placeholder="example.com"></div></div>
+<div class="mdui-col-md-3"><label>子域名递归解析代理</label><select id="proxy_pattern" class="mdui-select"><option value="zone">关闭（不存在时返回 NXDOMAIN）</option><option value="record">开启（不存在时继续递归查询）</option></select></div>
+<div class="mdui-col-md-3"><div class="mdui-textfield"><label class="mdui-textfield-label">域名备注</label><input class="mdui-textfield-input" id="zone_remark"></div></div>
+<div class="mdui-col-md-3"><div class="mdui-textfield"><label class="mdui-textfield-label">生效范围（HTTPDNS Account ID）</label><input class="mdui-textfield-input" id="account_ids" placeholder="100001, 100002"></div></div></div>
+<button class="mdui-btn mdui-color-indigo" onclick="addZone()">创建权威域名</button><button class="mdui-btn" onclick="updateZone()">保存域名设置</button><button class="mdui-btn" onclick="updateScope()">保存生效范围</button><button class="mdui-btn mdui-text-color-red" onclick="deleteZone()">删除权威域名</button>
+<p class="mdui-text-color-grey">请先配置完整的解析记录，再设置生效 Account ID。清空后保存可移除生效范围。</p></div></div>
+
+<div class="mdui-card mdui-m-t-2"><div class="mdui-card-content"><h3 id="form-title">添加解析记录</h3><div class="mdui-row">
+<div class="mdui-col-md-3"><div class="mdui-textfield"><label class="mdui-textfield-label">主机记录（RR）</label><input class="mdui-textfield-input" id="rr" placeholder="@ / www / *"></div></div>
+<div class="mdui-col-md-2"><label>记录类型</label><select id="type" class="mdui-select"><option value="A">A（IPv4 地址）</option><option value="AAAA">AAAA（IPv6 地址）</option><option value="CNAME">CNAME（别名）</option><option value="TXT">TXT（文本）</option><option value="MX">MX（邮件服务器）</option><option value="SRV">SRV（服务定位）</option></select></div>
+<div class="mdui-col-md-3"><label>解析请求来源（线路）</label><select id="line" class="mdui-select"><option value="default">默认</option><option value="telecom">中国电信</option><option value="unicom">中国联通</option><option value="mobile">中国移动</option><option value="edu">教育网</option><option value="oversea">境外</option><option value="aliyun">阿里云</option><option value="__custom__">自定义线路代码</option></select><div class="mdui-textfield" id="custom_line_box" style="display:none"><label class="mdui-textfield-label">自定义线路代码</label><input class="mdui-textfield-input" id="custom_line"></div></div>
+<div class="mdui-col-md-2"><label>缓存时间（TTL）</label><select id="ttl" class="mdui-select"><option value="5">5 秒</option><option value="30">30 秒</option><option value="60" selected>1 分钟</option><option value="3600">1 小时</option><option value="43200">12 小时</option><option value="86400">1 天</option></select></div>
+<div class="mdui-col-md-2" id="priority_box" style="display:none"><div class="mdui-textfield"><label class="mdui-textfield-label">MX 优先级</label><input type="number" class="mdui-textfield-input" id="priority" value="1" min="1" max="99"></div></div>
+</div>
+<div class="mdui-m-t-1"><label>记录值负载策略</label><select id="weight_status" class="mdui-select"><option value="keep">保持当前设置（编辑时推荐）</option><option value="disable">轮询返回全部记录值</option><option value="enable">按照权重返回记录值</option></select></div>
+<h4>记录值集合</h4>
+<div class="mdui-table-fluid"><table class="mdui-table"><thead><tr><th>记录值</th><th style="width:120px">权重（1-100）</th><th>备注</th><th style="width:90px">操作</th></tr></thead><tbody id="value_rows"></tbody></table></div>
+<button class="mdui-btn mdui-text-color-indigo" onclick="addValueRow()"><i class="mdui-icon material-icons">add</i> 添加记录值</button>
+<div class="mdui-m-t-1"><button class="mdui-btn mdui-color-indigo" onclick="saveRecord()">保存记录集合</button><button class="mdui-btn" onclick="resetForm()">取消编辑</button></div>
+</div></div>
+
+<div class="mdui-table-fluid mdui-m-t-2"><table class="mdui-table"><thead><tr><th>主机记录</th><th>类型</th><th>记录值</th><th>TTL</th><th>解析线路</th><th>权重</th><th>备注</th><th>状态</th><th>记录 ID</th><th>操作</th></tr></thead><tbody id="records"><tr><td colspan="10">请先选择权威域名</td></tr></tbody></table></div>
 </main>
 <script>
-var accountId={$account.id};var base='/user/alibaba/'+accountId+'/httpdns';var recordsById={};function esc(v){return $('<div>').text(v==null?'':v).html();}function zoneId(){return $('#zone').val();}
-function req(method,url,data,done){$.ajax({method:method,url:url,data:data,dataType:'json',success:function(r){if(r.status==='0'){mdui.alert(r.content,r.title);return;}done(r);},error:function(x){mdui.alert('HTTP '+x.status,'Request failed');}});}
-function testConnection(){req('GET',base+'/connection',{},function(r){var c=r.connection||{};$('#connection_status').text((c.proxy||'不使用代理')+' | '+(c.endpoint||'')+' | Zone 数量：'+(c.zone_count||0));mdui.snackbar('Alibaba Cloud API 连接成功');});}
-function loadZones(){var selected=zoneId();req('GET',base+'/zones',{},function(r){var h='<option value="">-- Select Zone --</option>';(r.zones||[]).forEach(function(z){h+='<option value="'+esc(z.ZoneId)+'">'+esc(z.ZoneName)+' / '+esc(z.ZoneId)+' ('+esc(z.RecordCount||0)+')</option>';});$('#zone').html(h).val(selected);});}
-function showZoneDetails(){if(!zoneId()){mdui.alert('Select a Zone');return;}req('GET',base+'/zone',{zone_id:zoneId()},function(r){var z=r.zone||{},ids=[],scopes=((z.EffectiveScopes||{}).EffectiveScope)||[];if(!Array.isArray(scopes)){scopes=[scopes];}scopes.forEach(function(s){var a=((s.Scopes||{}).Scope)||[];ids=ids.concat(Array.isArray(a)?a:[a]);});$('#zone_remark').val(z.Remark||'');$('#proxy_pattern').val(String(z.ProxyPattern||'zone').toLowerCase());$('#account_ids').val(ids.filter(Boolean).join(', '));mdui.updateTextFields();});}
-function addZone(){req('POST',base+'/zone',{zone_name:$('#zone_name').val(),proxy_pattern:$('#proxy_pattern').val()},function(r){mdui.snackbar('Zone created: '+(r.zone_id||''));$('#zone_name').val('');loadZones();});}
-function updateZone(){if(!zoneId()){mdui.alert('Select a Zone');return;}req('PUT',base+'/zone',{zone_id:zoneId(),remark:$('#zone_remark').val(),proxy_pattern:$('#proxy_pattern').val()},function(r){mdui.snackbar(r.content);loadZones();});}
-function updateScope(){if(!zoneId()){mdui.alert('Select a Zone');return;}req('PUT',base+'/zone/scope',{zone_id:zoneId(),account_ids:$('#account_ids').val()},function(r){mdui.snackbar(r.content);showZoneDetails();});}
-function deleteZone(){if(!zoneId()){mdui.alert('Select a Zone');return;}mdui.confirm('The Zone must have no records and no effective scopes. Delete it?','Danger',function(){req('DELETE',base+'/zone',{zone_id:zoneId()},function(r){mdui.snackbar(r.content);$('#records').html('<tr><td colspan="8">Select a Zone</td></tr>');loadZones();});});}
-function loadRecords(){if(!zoneId()){mdui.alert('\u8bf7\u5148\u9009\u62e9 Zone');return;}req('GET',base+'/records',{zone_id:zoneId()},function(r){recordsById={};var h='';(r.records||[]).forEach(function(v){var id=String(v.RecordId),status=String(v.EnableStatus||v.Status||'ENABLE').toUpperCase();recordsById[id]=v;h+='<tr><td>'+esc(v.Rr)+'</td><td>'+esc(v.Type)+'</td><td>'+esc(v.Value)+'</td><td>'+esc(v.Ttl)+'</td><td>'+esc(v.RequestSource||v.Line||'default')+'</td><td>'+esc(status)+'</td><td><code>'+esc(id)+'</code></td><td><button class="mdui-btn mdui-btn-dense" onclick="editRecord(\''+esc(id)+'\')">Edit</button><button class="mdui-btn mdui-btn-dense" onclick="toggleRecord(\''+esc(id)+'\',\''+(status==='ENABLE'?'DISABLE':'ENABLE')+'\')">'+(status==='ENABLE'?'Pause':'Enable')+'</button><button class="mdui-btn mdui-btn-dense mdui-text-color-red" onclick="removeRecord(\''+esc(id)+'\')">Delete</button></td></tr>';});$('#records').html(h||'<tr><td colspan="8">No records</td></tr>');});}
-function payload(){return{zone_id:zoneId(),record_id:$('#record_id').val(),rr:$('#rr').val(),type:$('#type').val(),value:$('#value').val(),ttl:$('#ttl').val(),line:$('#line').val(),weight:$('#weight').val(),weight_status:$('#weight_status').val(),priority:$('#priority').val(),remark:$('#remark').val()};}
-function saveRecord(){if(!zoneId()){mdui.alert('\u8bf7\u5148\u9009\u62e9 Zone');return;}var edit=$('#record_id').val()!=='';req(edit?'PUT':'POST',base+'/records',payload(),function(r){mdui.snackbar(r.content);resetForm();loadRecords();});}
-function editRecord(id){var v=recordsById[id];$('#record_id').val(id);$('#rr').val(v.Rr);$('#type').val(v.Type);$('#value').val(v.Value);$('#ttl').val(String(v.Ttl));$('#weight').val(v.Weight||1);$('#priority').val(v.Priority||1);$('#line').val(v.RequestSource||v.Line||'default');$('#remark').val(v.Remark||'');$('#weight_status').val('keep');$('#form-title').text('Edit record '+id);mdui.updateTextFields();}
-function resetForm(){$('#record_id,#rr,#value,#remark').val('');$('#type').val('A');$('#ttl').val('60');$('#weight,#priority').val('1');$('#line').val('default');$('#weight_status').val('keep');$('#form-title').html('&#28155;&#21152;&#35760;&#24405;');}
-function toggleRecord(id,status){req('PATCH',base+'/records/status',{record_id:id,status:status},function(r){mdui.snackbar(r.content);loadRecords();});}
-function removeRecord(id){mdui.confirm('Delete record '+id+'?','Confirm',function(){req('DELETE',base+'/records',{record_id:id},function(r){mdui.snackbar(r.content);loadRecords();});});}$('#zone').on('change',loadRecords);
-$(function(){loadZones();});
+var accountId={$account.id};
+var base='/user/alibaba/'+accountId+'/httpdns';
+var recordsById={};
+var removedRecordIds=[];
+function esc(v){return $('<div>').text(v==null?'':v).html();}
+function attr(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function zoneId(){return $('#zone').val();}
+function requireZone(){if(zoneId()){return true;}mdui.alert('请先选择权威域名');return false;}
+function req(method,url,data,done){$.ajax({method:method,url:url,data:data,dataType:'json',success:function(r){if(r.status==='0'){mdui.alert(r.content,r.title);return;}done(r);},error:function(x){mdui.alert('服务器返回 HTTP '+x.status,'请求失败');}});}
+function testConnection(){req('GET',base+'/connection',{},function(r){var c=r.connection||{};$('#connection_status').text((c.proxy||'不使用代理')+' | '+(c.endpoint||'')+' | 权威域名数量：'+(c.zone_count||0));mdui.snackbar('阿里云接口连接成功');});}
+function loadZones(){var selected=zoneId();req('GET',base+'/zones',{},function(r){var h='<option value="">请选择权威域名</option>';(r.zones||[]).forEach(function(z){h+='<option value="'+attr(z.ZoneId)+'">'+esc(z.ZoneName)+' / '+esc(z.ZoneId)+'（'+esc(z.RecordCount||0)+' 条记录）</option>';});$('#zone').html(h).val(selected);if(selected){loadRecords();}});}
+function showZoneDetails(){if(!requireZone()){return;}req('GET',base+'/zone',{zone_id:zoneId()},function(r){var z=r.zone||{},ids=[],scopes=((z.EffectiveScopes||{}).EffectiveScope)||[];if(!Array.isArray(scopes)){scopes=[scopes];}scopes.forEach(function(s){var a=((s.Scopes||{}).Scope)||[];ids=ids.concat(Array.isArray(a)?a:[a]);});$('#zone_remark').val(z.Remark||'');$('#proxy_pattern').val(String(z.ProxyPattern||'zone').toLowerCase());$('#account_ids').val(ids.filter(Boolean).join(', '));mdui.updateTextFields();});}
+function addZone(){req('POST',base+'/zone',{zone_name:$('#zone_name').val(),proxy_pattern:$('#proxy_pattern').val()},function(r){mdui.snackbar('权威域名创建成功，ID：'+(r.zone_id||''));$('#zone_name').val('');loadZones();});}
+function updateZone(){if(!requireZone()){return;}req('PUT',base+'/zone',{zone_id:zoneId(),remark:$('#zone_remark').val(),proxy_pattern:$('#proxy_pattern').val()},function(r){mdui.snackbar('域名设置已保存');loadZones();});}
+function updateScope(){if(!requireZone()){return;}req('PUT',base+'/zone/scope',{zone_id:zoneId(),account_ids:$('#account_ids').val()},function(r){mdui.snackbar('生效范围已保存');showZoneDetails();});}
+function deleteZone(){if(!requireZone()){return;}mdui.confirm('只有在域名下没有解析记录且没有生效范围时才能删除。确定继续吗？','删除权威域名',function(){req('DELETE',base+'/zone',{zone_id:zoneId()},function(r){mdui.snackbar('权威域名已删除');$('#records').html('<tr><td colspan="10">请先选择权威域名</td></tr>');loadZones();});});}
+function statusText(status){return status==='ENABLE'?'已启用':'已停用';}
+function lineText(line){var names={default:'默认',telecom:'中国电信',unicom:'中国联通',mobile:'中国移动',edu:'教育网',oversea:'境外',aliyun:'阿里云'};return names[line]?names[line]+'（'+line+'）':line;}
+function groupRecords(seed){return Object.keys(recordsById).map(function(k){return recordsById[k];}).filter(function(v){return String(v.Rr)===String(seed.Rr)&&String(v.Type)===String(seed.Type)&&String(v.RequestSource||v.Line||'default')===String(seed.RequestSource||seed.Line||'default');});}
+function loadRecords(){if(!requireZone()){return;}req('GET',base+'/records',{zone_id:zoneId()},function(r){recordsById={};var h='';(r.records||[]).forEach(function(v){var id=String(v.RecordId),status=String(v.EnableStatus||v.Status||'ENABLE').toUpperCase(),line=v.RequestSource||v.Line||'default';recordsById[id]=v;h+='<tr><td>'+esc(v.Rr)+'</td><td>'+esc(v.Type)+'</td><td>'+esc(v.Value)+'</td><td>'+esc(v.Ttl)+'</td><td>'+esc(lineText(line))+'</td><td>'+esc(v.Weight||1)+'</td><td>'+esc(v.Remark||'')+'</td><td>'+statusText(status)+'</td><td><code>'+esc(id)+'</code></td><td><button class="mdui-btn mdui-btn-dense" onclick="editRecordGroup(\''+id+'\')">编辑集合</button><button class="mdui-btn mdui-btn-dense" onclick="toggleRecord(\''+id+'\',\''+(status==='ENABLE'?'DISABLE':'ENABLE')+'\')">'+(status==='ENABLE'?'停用':'启用')+'</button><button class="mdui-btn mdui-btn-dense mdui-text-color-red" onclick="removeRecord(\''+id+'\')">删除</button></td></tr>';});$('#records').html(h||'<tr><td colspan="10">暂无解析记录</td></tr>');});}
+function addValueRow(v){v=v||{};var h='<tr class="value-row" data-record-id="'+attr(v.record_id||'')+'"><td><input class="mdui-textfield-input row-value" value="'+attr(v.value||'')+'" placeholder="请输入记录值"></td><td><input type="number" class="mdui-textfield-input row-weight" value="'+attr(v.weight||1)+'" min="1" max="100"></td><td><input class="mdui-textfield-input row-remark" value="'+attr(v.remark||'')+'" maxlength="50" placeholder="可选，最多 50 字"></td><td><button class="mdui-btn mdui-btn-dense mdui-text-color-red" onclick="removeValueRow(this)">移除</button></td></tr>';$('#value_rows').append(h);}
+function removeValueRow(btn){var row=$(btn).closest('tr'),id=String(row.data('record-id')||'');if(id){removedRecordIds.push(id);}row.remove();if(!$('#value_rows .value-row').length){addValueRow();}}
+function collectValues(){var rows=[];$('#value_rows .value-row').each(function(){rows.push({record_id:String($(this).data('record-id')||''),value:$(this).find('.row-value').val(),weight:$(this).find('.row-weight').val(),remark:$(this).find('.row-remark').val()});});return rows;}
+function selectedLine(){return $('#line').val()==='__custom__'?$('#custom_line').val():$('#line').val();}
+function payload(){return{zone_id:zoneId(),rr:$('#rr').val(),type:$('#type').val(),ttl:$('#ttl').val(),line:selectedLine(),weight_status:$('#weight_status').val(),priority:$('#priority').val(),records:JSON.stringify(collectValues()),removed_record_ids:JSON.stringify(removedRecordIds)};}
+function saveRecord(){if(!requireZone()){return;}var values=collectValues();if(!values.length||values.some(function(v){return !String(v.value||'').trim();})){mdui.alert('每一行都必须填写记录值');return;}var edit=values.some(function(v){return v.record_id;})||removedRecordIds.length>0;req(edit?'PUT':'POST',base+'/records',payload(),function(r){mdui.snackbar(r.content||'记录集合已保存');resetForm();loadRecords();});}
+function setLine(line){line=String(line||'default');if($('#line option[value="'+line.replace(/"/g,'\\"')+'"]').length){$('#line').val(line);$('#custom_line').val('');}else{$('#line').val('__custom__');$('#custom_line').val(line);}updateLineFields();}
+function editRecordGroup(id){var seed=recordsById[id],group=groupRecords(seed);removedRecordIds=[];$('#rr').val(seed.Rr);$('#type').val(seed.Type);$('#ttl').val(String(seed.Ttl));$('#priority').val(seed.Priority||1);setLine(seed.RequestSource||seed.Line||'default');$('#weight_status').val('keep');$('#value_rows').empty();group.forEach(function(v){addValueRow({record_id:v.RecordId,value:v.Value,weight:v.Weight||1,remark:v.Remark||''});});$('#form-title').text('编辑记录集合：'+seed.Rr+' / '+seed.Type);updateTypeFields();mdui.updateTextFields();window.scrollTo({top:$('#form-title').offset().top-90,behavior:'smooth'});}
+function resetForm(){removedRecordIds=[];$('#rr').val('');$('#type').val('A');$('#ttl').val('60');$('#priority').val('1');setLine('default');$('#weight_status').val('keep');$('#value_rows').empty();addValueRow();$('#form-title').text('添加解析记录');updateTypeFields();mdui.updateTextFields();}
+function updateTypeFields(){$('#priority_box').toggle($('#type').val()==='MX');}
+function updateLineFields(){$('#custom_line_box').toggle($('#line').val()==='__custom__');}
+function toggleRecord(id,status){req('PATCH',base+'/records/status',{record_id:id,zone_id:zoneId(),status:status},function(r){mdui.snackbar(status==='ENABLE'?'记录已启用':'记录已停用');loadRecords();});}
+function removeRecord(id){mdui.confirm('确定删除记录 ID '+id+' 吗？','删除解析记录',function(){req('DELETE',base+'/records',{record_id:id,zone_id:zoneId()},function(r){mdui.snackbar('解析记录已删除');loadRecords();});});}
+$('#zone').on('change',function(){resetForm();if(zoneId()){loadRecords();showZoneDetails();}else{$('#records').html('<tr><td colspan="10">请先选择权威域名</td></tr>');}});
+$('#type').on('change',updateTypeFields);
+$('#line').on('change',updateLineFields);
+$(function(){resetForm();loadZones();});
 </script>{include file="../app/view/user/footer.html" /}</html>

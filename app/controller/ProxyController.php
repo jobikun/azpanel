@@ -289,6 +289,22 @@ class ProxyController extends UserBase
     }
 
     /**
+     * 账号绑定代理的中文标签，供中文界面展示。
+     */
+    public static function getProxyLabelForAccountZh($account): string
+    {
+        $label = self::getProxyLabelForAccount($account);
+        return strtr($label, [
+            'Default proxy pool (no available proxy)' => '默认代理池（无可用代理）',
+            'No proxy' => '不使用代理',
+            'Default proxy pool:' => '默认代理池：',
+            'Proxy #' => '代理 #',
+            'Proxy:' => '代理：',
+            ' (unavailable)' => '（不可用）',
+        ]);
+    }
+
+    /**
      * 提供给账号添加/编辑表单的代理下拉列表（当前用户启用的代理）。
      */
     public static function getProxyOptionsForUser(?int $user_id = null)

@@ -1,13 +1,13 @@
-{include file="../app/view/user/header.html" title="添加 Alibaba Cloud 账户" /}
-<main class="az-main"><div class="az-page-head"><div><h1 class="az-page-title">添加 Alibaba Cloud 国际账户</h1><p class="az-page-subtitle">添加个人 Alibaba Cloud AccessKey，并为此账户独立绑定代理。</p></div></div>
+{include file="../app/view/user/header.html" title="添加阿里云国际账户" /}
+<main class="az-main"><div class="az-page-head"><div><h1 class="az-page-title">添加阿里云国际账户</h1><p class="az-page-subtitle">添加个人阿里云访问密钥，并为此账户独立绑定代理。</p></div></div>
 <div style="max-width:900px">
 <div class="mdui-card"><div class="mdui-card-content">
 <div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">账户名称</label><input class="mdui-textfield-input" id="name"></div>
-<div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">AccessKey ID</label><input class="mdui-textfield-input" id="access_key_id"></div>
-<div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">AccessKey Secret</label><input type="password" class="mdui-textfield-input" id="access_key_secret"></div>
+<div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">访问密钥 ID（AccessKey ID）</label><input class="mdui-textfield-input" id="access_key_id"></div>
+<div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">访问密钥 Secret</label><input type="password" class="mdui-textfield-input" id="access_key_secret"></div>
 <div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">备注</label><input class="mdui-textfield-input" id="remark"></div>
 <label>绑定代理</label><select id="proxy_id" class="mdui-select" mdui-select><option value="0">不使用代理</option><option value="-1">跟随默认代理</option>{volist name="proxies" id="proxy"}<option value="{$proxy.id}">{$proxy.name}（{if $proxy.source_type == 'api'}API 动态{else /}{$proxy.address}:{$proxy.port}{/if}）</option>{/volist}</select>
-<p class="mdui-text-color-grey">保存时会通过所选代理以 HTTPS 连接 <code>alidns.aliyuncs.com</code>，验证 AccessKey 及 HTTPDNS 内置权威 Zone 权限。RAM 用户请绑定 <code>AliyunPubDNSFullAccess</code>（<code>pubdns:*</code>）；凭据仅保存在服务器数据库中，不会在页面中回显 Secret。</p>
+<p class="mdui-text-color-grey">保存时会通过所选代理以 HTTPS 连接 <code>alidns.aliyuncs.com</code>，验证访问密钥及 HTTPDNS 内置权威域名权限。RAM 用户请绑定 <code>AliyunPubDNSFullAccess</code>（<code>pubdns:*</code>）；凭据仅保存在服务器数据库中，不会在页面中显示 Secret。</p>
 </div><div class="mdui-card-actions"><button class="mdui-btn mdui-color-indigo" onclick="saveAccount()">验证并保存</button><a class="mdui-btn" href="/user/alibaba">取消</a></div></div>
 </div></main>
 <script>function saveAccount(){$.ajax({method:'POST',url:'/user/alibaba',data:{name:$('#name').val(),access_key_id:$('#access_key_id').val(),access_key_secret:$('#access_key_secret').val(),remark:$('#remark').val(),proxy_id:$('#proxy_id').val()},dataType:'json',success:function(r){mdui.alert(r.content,r.title);if(r.status==='1'){setTimeout(function(){location='/user/alibaba';},800);}}});}</script>
