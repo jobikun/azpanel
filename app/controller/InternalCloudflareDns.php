@@ -8,11 +8,83 @@ use app\model\Aws;
 use app\model\AwsServer;
 use app\model\Azure;
 use app\model\AzureServer;
+use app\model\AlibabaAccount;
 use app\model\Config;
+use app\service\AlibabaHttpDnsZone;
 use think\helper\Str;
 
 class InternalCloudflareDns extends BaseController
 {
+    public function alibabaHttpDns()
+    {
+        $payload = $this->payload();
+        $auth_error = $this->authError($payload);
+        if ($auth_error !== null) {
+            return json(['status' => 'failed', 'message' => $auth_error['message']], $auth_error['code']);
+        }
+
+        try {
+            $method = strtoupper((string) request()->method());
+            $account_id = (int) ($payload['account_id'] ?? 0);
+            if ($account_id <= 0) {
+                $accounts = [];
+                foreach (AlibabaAccount::order('id', 'desc')->select() as $account) {
+                    $accounts[] = [
+                        'id' => (int) $account->id,
+                        'name' => (string) $account->name,
+                        'access_key_hint' => substr((string) $account->access_key_id, 0, 8) . '…' . substr((string) $account->access_key_id, -4),
+                        'proxy' => ProxyController::getProxyLabelForAccountZh($account),
+                    ];
+                }
+                return json(['status' => 'success', 'data' => ['accounts' => $accounts]]);
+            }
+
+            $account = AlibabaAccount::find($account_id);
+            if ($account === null) { throw new \InvalidArgumentException('Alibaba Cloud account not found'); }
+            $api = new AlibabaHttpDnsZone($account);
+            $zone_id = trim((string) ($payload['zone_id'] ?? ''));
+            if ($zone_id === '') {
+                if ($method !== 'GET') { throw new \InvalidArgumentException('zone_id is required'); }
+                return json(['status' => 'success', 'data' => ['zones' => $api->zones()]]);
+            }
+
+            $record_id = trim((string) ($payload['record_id'] ?? ''));
+            if ($record_id === '') {
+                if ($method !== 'GET') { throw new \InvalidArgumentException('record_id is required'); }
+                return json(['status' => 'success', 'data' => ['records' => $api->records($zone_id)]]);
+            }
+            if ($method === 'GET') {
+                foreach ($api->records($zone_id) as $record) {
+                    if ((string) ($record['RecordId'] ?? '') === $record_id) {
+                        return json(['status' => 'success', 'data' => ['record' => $record]]);
+                    }
+                }
+                throw new \InvalidArgumentException('HTTPDNS record not found');
+            }
+
+            if ($method !== 'PUT' && $method !== 'PATCH') { throw new \InvalidArgumentException('Unsupported HTTP method'); }
+            $record = [
+                'rr' => trim((string) ($payload['rr'] ?? '')),
+                'type' => strtoupper(trim((string) ($payload['type'] ?? ''))),
+                'value' => trim((string) ($payload['value'] ?? '')),
+                'ttl' => (int) ($payload['ttl'] ?? 60),
+                'line' => trim((string) ($payload['line'] ?? 'default')) ?: 'default',
+                'weight' => (int) ($payload['weight'] ?? 1),
+                'weight_status' => 'keep',
+                'priority' => (int) ($payload['priority'] ?? 1),
+                'remark' => trim((string) ($payload['remark'] ?? '')),
+            ];
+            if ($record['rr'] === '' || $record['type'] === '' || $record['value'] === '') {
+                throw new \InvalidArgumentException('rr, type and value are required');
+            }
+            $result = $api->updateRecord($record_id, $zone_id, $record);
+            return json(['status' => 'success', 'data' => ['record' => $record + ['record_id' => $record_id], 'result' => $result]]);
+        } catch (\Throwable $e) {
+            $code = $e instanceof \InvalidArgumentException ? 400 : 500;
+            return json(['status' => 'failed', 'message' => $e->getMessage()], $code);
+        }
+    }
+
     public function changeIp()
     {
         $payload = $this->payload();

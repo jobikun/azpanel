@@ -7,8 +7,9 @@ class AlibabaAccountDohEndpoint extends Migrator
     public function up(): void
     {
         if (! $this->hasTable('alibaba_account')) { return; }
-        if (! $this->hasColumn('alibaba_account', 'doh_endpoint')) {
-            $this->table('alibaba_account')->addColumn('doh_endpoint', 'string', [
+        $table = $this->table('alibaba_account');
+        if (! $table->hasColumn('doh_endpoint')) {
+            $table->addColumn('doh_endpoint', 'string', [
                 'limit' => 255,
                 'default' => '',
                 'comment' => 'Saved Alibaba HTTPDNS encrypted DoH endpoint',
@@ -20,8 +21,9 @@ class AlibabaAccountDohEndpoint extends Migrator
     public function down(): void
     {
         if (! $this->hasTable('alibaba_account')) { return; }
-        if ($this->hasColumn('alibaba_account', 'doh_endpoint')) {
-            $this->table('alibaba_account')->removeColumn('doh_endpoint')->update();
+        $table = $this->table('alibaba_account');
+        if ($table->hasColumn('doh_endpoint')) {
+            $table->removeColumn('doh_endpoint')->update();
         }
     }
 }
