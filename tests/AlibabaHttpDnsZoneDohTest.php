@@ -9,6 +9,8 @@ $class = new ReflectionClass(AlibabaHttpDnsZone::class);
 $findEndpoint = $class->getMethod('findDohEndpoint');
 $normalizeEndpoint = $class->getMethod('normalizeDohEndpoint');
 $configurationId = $class->getMethod('configurationIdFromEndpoint');
+$effectiveScopeParameters = $class->getMethod('effectiveScopeParameters');
+$accountIdsFromZone = $class->getMethod('accountIdsFromZone');
 
 $cases = [
     ['find complete URL', $findEndpoint, [['Data' => ['DohUrl' => 'https://12345-AbCd.alidns.com/dns-query']]], 'https://12345-abcd.alidns.com/dns-query'],
@@ -18,6 +20,10 @@ $cases = [
     ['reject other provider', $normalizeEndpoint, ['https://dns.example.com/dns-query'], ''],
     ['configuration ID from encrypted address', $configurationId, ['https://12345-systemtoken.alidns.com/dns-query'], '12345'],
     ['configuration ID from short address', $configurationId, ['https://12345.alidns.com/dns-query'], '12345'],
+    ['build effective scope query', $effectiveScopeParameters, ['208680444000011', ['100001', '100002', '100001']], ['ZoneId' => '208680444000011', 'EffectiveScopes.1.EffectiveType' => 'account', 'EffectiveScopes.1.Scope.1' => '100001', 'EffectiveScopes.1.Scope.2' => '100002']],
+    ['clear effective scope query', $effectiveScopeParameters, ['208680444000011', []], ['ZoneId' => '208680444000011']],
+    ['parse effective account IDs', $accountIdsFromZone, [['EffectiveScopes' => ['EffectiveScope' => [['EffectiveType' => 'account', 'Scopes' => ['Scope' => ['100001', '100002']]], ['EffectiveType' => 'other', 'Scopes' => ['Scope' => ['ignore']]]]]]], ['100001', '100002']],
+    ['parse single effective scope object', $accountIdsFromZone, [['RecursionZone' => ['EffectiveScopes' => ['EffectiveScope' => ['EffectiveType' => 'account', 'Scopes' => ['Scope' => '100001']]]]]], ['100001']],
 ];
 
 $failures = 0;

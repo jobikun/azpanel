@@ -256,8 +256,8 @@ class AlibabaHttpDnsZone
         foreach ($accountIds as $accountId) {
             $accountId = trim((string) $accountId);
             if ($accountId === '') { continue; }
-            if (!preg_match('/^[a-z0-9]+$/i', $accountId)) {
-                throw new \InvalidArgumentException('HTTPDNS 专属配置 ID 只能包含字母和数字');
+            if (!preg_match('/^[0-9]+$/', $accountId)) {
+                throw new \InvalidArgumentException('HTTPDNS Account ID 只能包含数字');
             }
             $normalizedIds[$accountId] = $accountId;
         }

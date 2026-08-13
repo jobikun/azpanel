@@ -248,7 +248,12 @@ function renderScopeState(){
     $('#scope_account_ids').val(currentScopeIds.join(', '));
     $('#scope_status_card').toggleClass('is-active',currentEnabled).toggleClass('is-partial',configured&&!currentEnabled);
     $('#scope_status_card .httpdns-scope-status-icon i').text(currentEnabled?'verified_user':(configured?'error_outline':'warning_amber'));
-    if(currentEnabled){
+    if(configured&&!currentConfigurationId){
+        $('#scope_status_title').text('生效范围已设置，但暂时无法核对当前账户');
+        $('#scope_status_help').text('现有范围：'+currentScopeIds.join(', ')+'。请先确认上方“专属配置 ID”已读取成功。');
+        $('#scope_status_badge').text('待核对');
+        $('#summary_scope_count').text('已设置 '+currentScopeIds.length+' 个').removeClass('is-warning is-ok');
+    }else if(currentEnabled){
         $('#scope_status_title').text('已对当前 HTTPDNS 账户生效');
         $('#scope_status_help').text('当前域名已绑定专属配置 ID '+currentConfigurationId+'，解析请求可以命中内置权威记录。');
         $('#scope_status_badge').text('已生效');
@@ -264,7 +269,7 @@ function renderScopeState(){
         $('#scope_status_badge').text('未设置');
         $('#summary_scope_count').text(zoneId()?'未设置':'—').addClass('is-warning').removeClass('is-ok');
     }
-    $('#scope_warning').prop('hidden',!zoneId()||currentEnabled);
+    $('#scope_warning').prop('hidden',!zoneId()||currentEnabled||(configured&&!currentConfigurationId));
     $('#scope_warning_title').text(configured?'生效范围未包含当前账户':'此域名尚未设置生效范围');
     $('#scope_warning_help').text(configured?'现有记录不会对当前专属配置 ID 生效，请把当前账户加入生效范围。':'解析记录可以继续编辑，但不会对当前 HTTPDNS 账户生效。');
     mdui.updateTextFields();
