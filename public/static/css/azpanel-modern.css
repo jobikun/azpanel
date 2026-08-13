@@ -1109,6 +1109,125 @@ select {
     font-size: 13px;
 }
 
+.httpdns-doh-card {
+    margin-bottom: 18px;
+    overflow: hidden;
+    border: 1px solid #dbe4f0;
+    border-radius: 10px;
+}
+
+.httpdns-doh-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 17px 20px;
+    border-bottom: 1px solid #e8edf4;
+    background: linear-gradient(135deg, #f8fbff 0%, #f2f7ff 100%);
+}
+
+.httpdns-doh-head > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.httpdns-doh-head h2 {
+    margin: 0 0 3px;
+    color: #0f172a;
+    font-size: 16px;
+}
+
+.httpdns-doh-head p,
+.httpdns-doh-help {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.httpdns-doh-body {
+    padding: 18px 20px;
+}
+
+.httpdns-doh-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.httpdns-doh-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 21px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e0ecff;
+    color: #2563eb;
+    font-size: 11px;
+}
+
+.httpdns-doh-badge.is-encrypted {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.httpdns-doh-badge.is-loading {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.httpdns-doh-badge.is-error {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.httpdns-doh-copy-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.httpdns-doh-copy-row input {
+    min-width: 0;
+    height: 42px;
+    padding: 0 13px;
+    border: 1px solid #cfd9e8;
+    border-radius: 7px;
+    outline: none;
+    background: #fff;
+    color: #0f172a;
+    font: 500 14px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.httpdns-doh-copy-row input:focus {
+    border-color: #6e9af2;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .09);
+}
+
+.httpdns-doh-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin: 12px 0 8px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.httpdns-doh-meta strong {
+    margin-left: 4px;
+    color: #475569;
+    font-weight: 700;
+}
+
+.httpdns-doh-help.is-error {
+    color: #b91c1c;
+}
+
 .httpdns-status-dot {
     width: 9px;
     height: 9px;
@@ -1588,6 +1707,7 @@ select {
     }
 
     .httpdns-account-bar,
+    .httpdns-doh-head,
     .httpdns-zone-toolbar,
     .httpdns-section-head,
     .httpdns-danger-zone {
@@ -1601,6 +1721,14 @@ select {
 
     .httpdns-account-key {
         margin-top: 3px;
+    }
+
+    .httpdns-doh-copy-row {
+        grid-template-columns: 1fr;
+    }
+
+    .httpdns-doh-copy-row .mdui-btn {
+        width: 100%;
     }
 
     .httpdns-zone-select-wrap,

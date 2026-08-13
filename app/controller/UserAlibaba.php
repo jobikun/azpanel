@@ -74,10 +74,33 @@ class UserAlibaba extends UserBase
 
     public function zones($id) { return $this->api((int) $id, fn($api) => ['zones' => $api->zones()]); }
     public function connection($id) { return $this->api((int) $id, fn($api) => ['connection' => $api->connectionInfo()]); }
+    public function doh($id) { return $this->api((int) $id, fn($api) => ['doh' => $api->dohAccessInfo()]); }
     public function zone($id) { return $this->api((int) $id, fn($api) => ['zone' => $api->zone($this->required('zone_id'))]); }
     public function addZone($id) { return $this->api((int) $id, fn($api) => ['zone_id' => ($api->addZone($this->required('zone_name'), input('proxy_pattern/s', 'zone')))['ZoneId'] ?? '']); }
     public function updateZone($id) { return $this->api((int) $id, function ($api) { $api->updateZone($this->required('zone_id'), input('remark/s', ''), input('proxy_pattern/s', 'zone')); return []; }); }
-    public function scope($id) { return $this->api((int) $id, function ($api) { $ids = preg_split('/[\s,;]+/', trim(input('account_ids/s', '')), -1, PREG_SPLIT_NO_EMPTY) ?: []; $api->updateEffectiveScope($this->required('zone_id'), $ids); return []; }); }
+    public function scope($id)
+    {
+        return $this->api((int) $id, function ($api) {
+            $zoneId = $this->required('zone_id');
+            $mode = strtolower(trim(input('mode/s', 'custom')));
+            if ($mode === 'current') {
+                $configurationId = trim((string) (($api->dohAccessInfo())['configuration_id'] ?? ''));
+                if ($configurationId === '') { throw new \RuntimeException('未能取得当前账户的 HTTPDNS 专属配置 ID'); }
+                $ids = array_values(array_unique(array_merge($api->effectiveAccountIds($zoneId), [$configurationId])));
+                $content = '当前 HTTPDNS 账户已加入域名生效范围';
+            } elseif ($mode === 'clear') {
+                $ids = [];
+                $content = '域名生效范围已清空';
+            } elseif ($mode === 'custom') {
+                $ids = preg_split('/[\s,;]+/', trim(input('account_ids/s', '')), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                $content = '域名生效范围已更新';
+            } else {
+                throw new \InvalidArgumentException('不支持的生效范围操作');
+            }
+            $api->updateEffectiveScope($zoneId, $ids);
+            return ['account_ids' => array_values($ids), 'content' => $content];
+        });
+    }
     public function deleteZone($id) { return $this->api((int) $id, function ($api) { $api->deleteZone($this->required('zone_id')); return []; }); }
     public function records($id) { return $this->api((int) $id, fn($api) => ['records' => $api->records($this->required('zone_id'))]); }
     public function saveRecord($id) { return $this->api((int) $id, function ($api) { $zoneId = $this->required('zone_id'); $records = $this->recordInputs(); foreach ($records as $record) { $api->addRecord($zoneId, $record); } return ['content' => '已添加 ' . count($records) . ' 条记录值']; }); }
@@ -95,9 +118,12 @@ class UserAlibaba extends UserBase
     {
         $name = trim(input('name/s')); $ak = trim(input('access_key_id/s')); $sk = trim(input('access_key_secret/s'));
         if ($sk === '' && $account->id) { $sk = (string) $account->access_key_secret; }
+        $dohEndpoint = trim(input('doh_endpoint/s', ''));
+        if ($dohEndpoint === '' && $account->id) { $dohEndpoint = (string) ($account->doh_endpoint ?? ''); }
         if ($name === '' || $ak === '' || $sk === '') { throw new \InvalidArgumentException('名称、AccessKey ID 和 Secret 均不能为空'); }
         $account->name = $name; $account->access_key_id = $ak; $account->access_key_secret = $sk;
         $account->proxy_id = ProxyController::normalizeBoundProxyId(input('proxy_id', 0), (int) $account->user_id); $account->remark = trim(input('remark/s', ''));
+        $account->doh_endpoint = $this->normalizeDohEndpoint($dohEndpoint);
     }
 
     private function account(int $id): AlibabaAccount
@@ -136,6 +162,15 @@ class UserAlibaba extends UserBase
         return array_values(array_unique(array_filter(array_map(fn($id) => trim((string) $id), $ids))));
     }
     private function required(string $name): string { $value = trim((string) input($name . '/s')); if ($value === '') { throw new \InvalidArgumentException($name . ' 不能为空'); } return $value; }
+    private function normalizeDohEndpoint(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') { return ''; }
+        if (!preg_match('~^https://[a-z0-9-]+\.alidns\.com/dns-query/?$~i', $value)) {
+            throw new \InvalidArgumentException('DoH 地址格式不正确，必须是 https://xxx.alidns.com/dns-query');
+        }
+        return rtrim(strtolower($value), '/');
+    }
     private function failure(\Throwable $e)
     {
         $message = $e->getMessage();

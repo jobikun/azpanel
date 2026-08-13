@@ -24,6 +24,29 @@
         <div class="httpdns-connection" id="connection_status"><span class="httpdns-status-dot is-idle"></span><span>连接状态尚未检测</span></div>
     </section>
 
+    <section class="mdui-card httpdns-doh-card" aria-labelledby="doh_card_title">
+        <div class="httpdns-doh-head">
+            <div>
+                <span class="httpdns-panel-icon"><i class="mdui-icon material-icons">https</i></span>
+                <div><h2 id="doh_card_title">DNS over HTTPS 接入地址</h2><p>自动读取当前账户的 HTTPDNS 专属配置并生成 DoH 地址</p></div>
+            </div>
+            <button class="mdui-btn httpdns-btn-secondary" onclick="loadDohAddress(this)"><i class="mdui-icon material-icons">refresh</i> 重新读取</button>
+        </div>
+        <div class="httpdns-doh-body">
+            <div class="httpdns-doh-label"><span>DoH 地址</span><span class="httpdns-doh-badge is-loading" id="doh_address_badge">正在读取</span></div>
+            <div class="httpdns-doh-copy-row">
+                <input type="text" id="doh_address" readonly placeholder="正在从阿里云读取专属配置 ID..." aria-label="DoH 接入地址">
+                <button class="mdui-btn mdui-color-indigo" id="doh_copy_button" onclick="copyDohAddress(this)" disabled><i class="mdui-icon material-icons">content_copy</i> 复制地址</button>
+            </div>
+            <div class="httpdns-doh-meta">
+                <span>专属配置 ID <strong id="doh_configuration_id">—</strong></span>
+                <span>服务状态 <strong id="doh_service_state">—</strong></span>
+                <span>安全接入 <strong id="doh_security_type">—</strong></span>
+            </div>
+            <p class="httpdns-doh-help" id="doh_address_help">读取后可直接复制到浏览器、客户端或网关的安全 DNS 设置中。</p>
+        </div>
+    </section>
+
     <section class="mdui-card httpdns-zone-card">
         <div class="httpdns-zone-toolbar">
             <div class="httpdns-zone-select-wrap">
@@ -33,6 +56,7 @@
             <div class="httpdns-zone-actions">
                 <button class="mdui-btn mdui-btn-icon" title="刷新域名和记录" onclick="refreshCurrentZone()"><i class="mdui-icon material-icons">refresh</i></button>
                 <button class="mdui-btn httpdns-btn-secondary" onclick="openZoneCreate()"><i class="mdui-icon material-icons">add</i> 新建域名</button>
+                <button class="mdui-btn httpdns-btn-secondary" id="scope_settings_button" onclick="openScopeSettings()" disabled><i class="mdui-icon material-icons">verified_user</i> 生效范围</button>
                 <button class="mdui-btn httpdns-btn-secondary" id="zone_settings_button" onclick="openZoneSettings()" disabled><i class="mdui-icon material-icons">tune</i> 域名设置</button>
             </div>
         </div>
@@ -40,7 +64,7 @@
             <div class="httpdns-summary-item"><span>域名 ID</span><strong id="summary_zone_id">—</strong></div>
             <div class="httpdns-summary-item"><span>解析记录</span><strong id="summary_record_count">—</strong></div>
             <div class="httpdns-summary-item"><span>已启用</span><strong id="summary_enabled_count">—</strong></div>
-            <div class="httpdns-summary-item"><span>生效 Account ID</span><strong id="summary_scope_count">—</strong></div>
+            <div class="httpdns-summary-item httpdns-summary-action" onclick="openScopeSettings()"><span>域名生效范围</span><strong id="summary_scope_count">—</strong></div>
             <div class="httpdns-summary-item"><span>子域名递归代理</span><strong id="summary_proxy_pattern">—</strong></div>
         </div>
     </section>
@@ -63,20 +87,37 @@
             <button class="mdui-btn mdui-btn-icon" onclick="closePanel('zone_settings_panel')"><i class="mdui-icon material-icons">close</i></button>
         </div>
         <div class="httpdns-settings-grid">
-            <div class="httpdns-setting-block">
+            <div class="httpdns-setting-block httpdns-setting-block-wide">
                 <h3>基本设置</h3>
                 <div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">域名备注</label><input class="mdui-textfield-input" id="zone_remark"></div>
                 <div class="httpdns-field"><label>子域名递归解析代理</label><select id="proxy_pattern" class="mdui-select"><option value="zone">关闭，不存在时返回 NXDOMAIN</option><option value="record">开启，不存在时继续递归查询</option></select></div>
                 <button class="mdui-btn mdui-color-indigo" onclick="updateZone(this)">保存基本设置</button>
             </div>
-            <div class="httpdns-setting-block">
-                <h3>生效范围</h3>
-                <p>记录只对这里填写的 HTTPDNS Account ID 生效。建议完成全部记录配置后再保存。</p>
-                <div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">Account ID，多个请用逗号分隔</label><input class="mdui-textfield-input" id="account_ids" placeholder="100001, 100002"></div>
-                <button class="mdui-btn mdui-color-indigo" onclick="updateScope(this)">保存生效范围</button>
-            </div>
         </div>
         <div class="httpdns-danger-zone"><div><strong>删除权威域名</strong><span>必须先删除全部解析记录，并清空生效范围。</span></div><button class="mdui-btn mdui-text-color-red" onclick="deleteZone()">删除域名</button></div>
+    </section>
+
+    <section class="mdui-card httpdns-slide-panel" id="scope_settings_panel" hidden>
+        <div class="httpdns-panel-head">
+            <div><span class="httpdns-panel-icon"><i class="mdui-icon material-icons">verified_user</i></span><div><h2>域名生效范围</h2><p id="scope_zone_name">请选择需要设置的权威域名</p></div></div>
+            <button class="mdui-btn mdui-btn-icon" onclick="closePanel('scope_settings_panel')"><i class="mdui-icon material-icons">close</i></button>
+        </div>
+        <div class="httpdns-scope-status-card" id="scope_status_card">
+            <span class="httpdns-scope-status-icon"><i class="mdui-icon material-icons">warning_amber</i></span>
+            <div><strong id="scope_status_title">正在读取生效范围</strong><span id="scope_status_help">请稍候...</span></div>
+            <span class="httpdns-scope-badge" id="scope_status_badge">读取中</span>
+        </div>
+        <div class="httpdns-scope-options">
+            <div class="httpdns-scope-option is-recommended">
+                <div><span class="httpdns-recommended-badge">推荐</span><h3>对当前 HTTPDNS 账户生效</h3><p>自动把当前账户的专属配置 ID 加入此域名的生效范围。已绑定的其他 ID 会保留。</p><div class="httpdns-scope-id">当前专属配置 ID：<strong id="scope_current_configuration_id">正在读取...</strong></div></div>
+                <button class="mdui-btn mdui-color-indigo" id="scope_enable_current_button" onclick="enableCurrentScope(this)" disabled><i class="mdui-icon material-icons">check_circle</i> 启用当前账户</button>
+            </div>
+            <div class="httpdns-scope-option">
+                <div><h3>高级：指定专属配置 ID</h3><p>仅在同一个域名需要对多个 HTTPDNS 专属配置生效时使用，多个 ID 用逗号分隔。</p><div class="mdui-textfield mdui-textfield-floating-label"><label class="mdui-textfield-label">专属配置 ID</label><input class="mdui-textfield-input" id="scope_account_ids" placeholder="100001, 100002"></div></div>
+                <button class="mdui-btn httpdns-btn-secondary" onclick="saveCustomScope(this)">保存指定范围</button>
+            </div>
+        </div>
+        <div class="httpdns-scope-footer"><div><strong>清空生效范围</strong><span>清空后，已保存的解析记录不会再对 HTTPDNS 请求生效，但记录本身不会删除。</span></div><button class="mdui-btn mdui-text-color-red" onclick="clearScope()">清空范围</button></div>
     </section>
 
     <section class="mdui-card httpdns-records-card">
@@ -86,6 +127,11 @@
                 <div class="httpdns-search"><i class="mdui-icon material-icons">search</i><input id="record_search" placeholder="搜索主机、类型、记录值或备注"></div>
                 <button class="mdui-btn mdui-color-indigo" id="add_record_button" onclick="openRecordEditor()" disabled><i class="mdui-icon material-icons">add</i> 添加解析记录</button>
             </div>
+        </div>
+        <div class="httpdns-scope-warning" id="scope_warning" hidden>
+            <i class="mdui-icon material-icons">warning_amber</i>
+            <div><strong id="scope_warning_title">此域名尚未设置生效范围</strong><span id="scope_warning_help">解析记录可以继续编辑，但不会对当前 HTTPDNS 账户生效。</span></div>
+            <button class="mdui-btn" onclick="openScopeSettings()">立即设置</button>
         </div>
         <div class="httpdns-record-table-wrap">
             <table class="mdui-table httpdns-record-table">
@@ -133,6 +179,8 @@ var recordsById={};
 var zonesById={};
 var currentRecords=[];
 var removedRecordIds=[];
+var currentScopeIds=[];
+var currentConfigurationId='';
 
 function esc(v){return $('<div>').text(v==null?'':v).html();}
 function attr(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -141,23 +189,93 @@ function requireZone(){if(zoneId()){return true;}mdui.alert('请先选择权威�
 function setLoading(button,loading){var el=$(button);if(loading){el.data('old-html',el.html()).prop('disabled',true).html('<span class="httpdns-spinner"></span>处理中');}else{el.prop('disabled',false).html(el.data('old-html')||el.html());}}
 function req(method,url,data,done,button){if(button){setLoading(button,true);}$.ajax({method:method,url:url,data:data,dataType:'json',success:function(r){if(r.status==='0'){mdui.alert(r.content,r.title);return;}done(r);},error:function(x){mdui.alert('服务器返回 HTTP '+x.status,'请求失败');},complete:function(){if(button){setLoading(button,false);}}});}
 
-function openPanel(id){['zone_create_panel','zone_settings_panel'].forEach(function(panel){if(panel!==id){$('#'+panel).prop('hidden',true);}});$('#'+id).prop('hidden',false);setTimeout(function(){document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});},30);}
+function openPanel(id){['zone_create_panel','zone_settings_panel','scope_settings_panel'].forEach(function(panel){if(panel!==id){$('#'+panel).prop('hidden',true);}});$('#'+id).prop('hidden',false);setTimeout(function(){document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});},30);}
 function closePanel(id){$('#'+id).prop('hidden',true);}
 function openZoneCreate(){openPanel('zone_create_panel');}
 function openZoneSettings(){if(!requireZone()){return;}openPanel('zone_settings_panel');showZoneDetails();}
+function openScopeSettings(){if(!requireZone()){return;}openPanel('scope_settings_panel');showZoneDetails();}
 
 function testConnection(button){req('GET',base+'/connection',{},function(r){var c=r.connection||{};$('#connection_status').html('<span class="httpdns-status-dot is-ok"></span><span><strong>连接正常</strong>　'+esc(c.proxy||'不使用代理')+'　·　'+esc(c.endpoint||'')+'</span>');mdui.snackbar('阿里云接口连接成功');},button);}
 
+function dohStateText(value){var states={AVAILABLE:'正常',PAUSED:'已暂停',STOPPED:'已停用',UNKNOWN:'未返回'};return states[String(value||'UNKNOWN').toUpperCase()]||value;}
+function dohSecurityText(value){var states={SECURE:'已启用加密接入',INSECURE:'未启用加密接入',UNKNOWN:'未返回'};return states[String(value||'UNKNOWN').toUpperCase()]||value;}
+function renderDohError(message){currentConfigurationId='';$('#doh_address').val('').attr('placeholder','暂时无法取得 DoH 地址');$('#doh_copy_button').prop('disabled',true);$('#doh_address_badge').removeClass('is-loading is-encrypted').addClass('is-error').text('读取失败');$('#doh_configuration_id,#doh_service_state,#doh_security_type').text('—');$('#doh_address_help').addClass('is-error').text(message||'读取失败，请检查 RAM 权限后重试。');renderScopeState();}
+function loadDohAddress(button){
+    if(button){setLoading(button,true);}
+    $('#doh_address_badge').removeClass('is-error is-encrypted').addClass('is-loading').text('正在读取');
+    $('#doh_address_help').removeClass('is-error').text('正在通过当前账户绑定的代理读取阿里云 HTTPDNS 配置...');
+    $.ajax({method:'GET',url:base+'/doh',dataType:'json',success:function(r){
+        if(r.status==='0'){renderDohError(r.content);return;}
+        var d=r.doh||{},encrypted=d.address_type==='encrypted';
+        currentConfigurationId=String(d.configuration_id||'');
+        $('#doh_address').val(d.url||'');
+        $('#doh_copy_button').prop('disabled',!d.url);
+        $('#doh_address_badge').removeClass('is-loading is-error').toggleClass('is-encrypted',encrypted).text(encrypted?'加密地址':'官方短地址');
+        $('#doh_configuration_id').text(currentConfigurationId||'—');
+        $('#doh_service_state').text(dohStateText(d.service_state));
+        $('#doh_security_type').text(dohSecurityText(d.security_type));
+        if(d.configuration_match===false){$('#doh_address_help').addClass('is-error').text('保存的地址与接口返回的专属配置 ID 不一致，请到账户设置中核对。');}
+        else if(encrypted&&d.source==='stored'&&d.lookup_available===false){$('#doh_address_help').text('这是账户设置中保存的系统分配加密地址；本次未能读取阿里云服务状态，但地址仍可复制使用。');}
+        else if(encrypted&&d.source==='stored'){$('#doh_address_help').text('这是账户设置中保存的系统分配加密地址，可直接使用；公开 API 已用于核对专属配置 ID 和服务状态。');}
+        else if(encrypted){$('#doh_address_help').text('阿里云接口已返回完整加密地址，建议优先使用此地址并妥善保管。');}
+        else{$('#doh_address_help').text('当前公开 API 只返回专属配置 ID，因此显示按官方格式生成的短地址；如需带随机后缀的加密地址，请在账户设置中保存一次。');}
+        renderScopeState();
+    },error:function(x){renderDohError('服务器返回 HTTP '+x.status+'，请稍后重新读取。');},complete:function(){if(button){setLoading(button,false);}}});
+}
+function copyDohAddress(button){var value=String($('#doh_address').val()||'');if(!value){return;}function copied(){var old=$(button).html();$(button).html('<i class="mdui-icon material-icons">check</i> 已复制');mdui.snackbar('DoH 地址已复制');setTimeout(function(){$(button).html(old);},1200);}if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(value).then(copied,function(){legacyCopy(value,copied);});}else{legacyCopy(value,copied);}}
+function legacyCopy(value,done){var input=document.getElementById('doh_address');input.focus();input.select();input.setSelectionRange(0,value.length);if(document.execCommand('copy')){done();}else{mdui.alert('浏览器无法自动复制，请手动选择地址复制。');}input.blur();}
+
 function loadZones(preferredId){var selected=String(preferredId||zoneId());req('GET',base+'/zones',{},function(r){var zones=r.zones||[],h='';zonesById={};zones.forEach(function(z){var id=String(z.ZoneId);zonesById[id]=z;h+='<option value="'+attr(id)+'">'+esc(z.ZoneName)+'</option>';});if(!zones.length){h='<option value="">尚未创建权威域名</option>';selected='';}else if(!zonesById[selected]){selected=String(zones[0].ZoneId);}$('#zone').html(h).val(selected);updateZoneAvailability();if(selected){loadCurrentZone();}else{clearZoneView();openZoneCreate();}},null);}
-function updateZoneAvailability(){var disabled=!zoneId();document.getElementById('zone_settings_button').disabled=disabled;document.getElementById('add_record_button').disabled=disabled;}
-function clearZoneView(){['summary_zone_id','summary_record_count','summary_enabled_count','summary_scope_count','summary_proxy_pattern'].forEach(function(id){document.getElementById(id).textContent='—';});$('#record_list_hint').text('选择权威域名后显示记录');renderRecords([]);}
+function updateZoneAvailability(){var disabled=!zoneId();document.getElementById('zone_settings_button').disabled=disabled;document.getElementById('scope_settings_button').disabled=disabled;document.getElementById('add_record_button').disabled=disabled;}
+function clearZoneView(){currentScopeIds=[];['summary_zone_id','summary_record_count','summary_enabled_count','summary_scope_count','summary_proxy_pattern'].forEach(function(id){document.getElementById(id).textContent='—';});$('#record_list_hint').text('选择权威域名后显示记录');$('#scope_warning').prop('hidden',true);renderScopeState();renderRecords([]);}
 function refreshCurrentZone(){if(!zoneId()){loadZones();return;}loadZones(zoneId());}
-function loadCurrentZone(){updateZoneAvailability();var z=zonesById[zoneId()]||{};$('#summary_zone_id').text(z.ZoneId||zoneId());$('#settings_zone_name').text((z.ZoneName||'当前域名')+'　·　ID '+zoneId());loadRecords();showZoneDetails(false);}
-function showZoneDetails(scrollPanel){if(!requireZone()){return;}req('GET',base+'/zone',{zone_id:zoneId()},function(r){var z=r.zone||{},ids=[],scopes=((z.EffectiveScopes||{}).EffectiveScope)||[];if(!Array.isArray(scopes)){scopes=[scopes];}scopes.forEach(function(s){var a=((s.Scopes||{}).Scope)||[];ids=ids.concat(Array.isArray(a)?a:[a]);});ids=ids.filter(Boolean);$('#zone_remark').val(z.Remark||'');$('#proxy_pattern').val(String(z.ProxyPattern||'zone').toLowerCase());$('#account_ids').val(ids.join(', '));$('#summary_scope_count').text(ids.length?ids.length+' 个':'未设置');$('#summary_proxy_pattern').text(String(z.ProxyPattern||'zone').toLowerCase()==='record'?'已开启':'已关闭');mdui.updateTextFields();if(scrollPanel){openPanel('zone_settings_panel');}});}
+function loadCurrentZone(){updateZoneAvailability();var z=zonesById[zoneId()]||{},label=(z.ZoneName||'当前域名')+'　·　ID '+zoneId();$('#summary_zone_id').text(z.ZoneId||zoneId());$('#settings_zone_name,#scope_zone_name').text(label);loadRecords();showZoneDetails(false);}
+function scopeIdsFromZone(z){
+    if(z&&z.RecursionZone){z=z.RecursionZone;}
+    var ids=[],scopes=((z.EffectiveScopes||{}).EffectiveScope)||[];
+    if(!Array.isArray(scopes)){scopes=[scopes];}
+    scopes.forEach(function(s){
+        if(!s||String(s.EffectiveType||'account').toLowerCase()!=='account'){return;}
+        var a=((s.Scopes||{}).Scope)||s.Scope||[];
+        ids=ids.concat(Array.isArray(a)?a:[a]);
+    });
+    return ids.map(function(v){return String(v||'').trim();}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});
+}
+function renderScopeState(){
+    var configured=currentScopeIds.length>0,currentEnabled=!!currentConfigurationId&&currentScopeIds.indexOf(currentConfigurationId)>=0;
+    $('#scope_current_configuration_id').text(currentConfigurationId||'读取失败，请检查 HTTPDNS 服务和 RAM 权限');
+    $('#scope_enable_current_button').prop('disabled',!zoneId()||!currentConfigurationId||currentEnabled).html(currentEnabled?'<i class="mdui-icon material-icons">check</i> 当前账户已启用':'<i class="mdui-icon material-icons">check_circle</i> 启用当前账户');
+    $('#scope_account_ids').val(currentScopeIds.join(', '));
+    $('#scope_status_card').toggleClass('is-active',currentEnabled).toggleClass('is-partial',configured&&!currentEnabled);
+    $('#scope_status_card .httpdns-scope-status-icon i').text(currentEnabled?'verified_user':(configured?'error_outline':'warning_amber'));
+    if(currentEnabled){
+        $('#scope_status_title').text('已对当前 HTTPDNS 账户生效');
+        $('#scope_status_help').text('当前域名已绑定专属配置 ID '+currentConfigurationId+'，解析请求可以命中内置权威记录。');
+        $('#scope_status_badge').text('已生效');
+        $('#summary_scope_count').text('当前账户已启用').addClass('is-ok').removeClass('is-warning');
+    }else if(configured){
+        $('#scope_status_title').text('已设置范围，但不包含当前账户');
+        $('#scope_status_help').text('现有范围：'+currentScopeIds.join(', ')+'。请启用当前账户后再测试解析。');
+        $('#scope_status_badge').text('未包含当前账户');
+        $('#summary_scope_count').text('未包含当前账户').addClass('is-warning').removeClass('is-ok');
+    }else{
+        $('#scope_status_title').text('尚未设置域名生效范围');
+        $('#scope_status_help').text('记录已经保存在 Zone 中，但在设置生效范围之前不会被 HTTPDNS 请求使用。');
+        $('#scope_status_badge').text('未设置');
+        $('#summary_scope_count').text(zoneId()?'未设置':'—').addClass('is-warning').removeClass('is-ok');
+    }
+    $('#scope_warning').prop('hidden',!zoneId()||currentEnabled);
+    $('#scope_warning_title').text(configured?'生效范围未包含当前账户':'此域名尚未设置生效范围');
+    $('#scope_warning_help').text(configured?'现有记录不会对当前专属配置 ID 生效，请把当前账户加入生效范围。':'解析记录可以继续编辑，但不会对当前 HTTPDNS 账户生效。');
+    mdui.updateTextFields();
+}
+function showZoneDetails(scrollPanel){if(!requireZone()){return;}req('GET',base+'/zone',{zone_id:zoneId()},function(r){var z=r.zone||{};currentScopeIds=scopeIdsFromZone(z);$('#zone_remark').val(z.Remark||'');$('#proxy_pattern').val(String(z.ProxyPattern||'zone').toLowerCase());$('#summary_proxy_pattern').text(String(z.ProxyPattern||'zone').toLowerCase()==='record'?'已开启':'已关闭');renderScopeState();mdui.updateTextFields();if(scrollPanel){openPanel('zone_settings_panel');}});}
 function addZone(button){req('POST',base+'/zone',{zone_name:$('#zone_name').val(),proxy_pattern:$('#new_zone_proxy_pattern').val()},function(r){mdui.snackbar('权威域名创建成功');$('#zone_name').val('');closePanel('zone_create_panel');loadZones(r.zone_id||'');},button);}
 function updateZone(button){if(!requireZone()){return;}req('PUT',base+'/zone',{zone_id:zoneId(),remark:$('#zone_remark').val(),proxy_pattern:$('#proxy_pattern').val()},function(){mdui.snackbar('域名基本设置已保存');showZoneDetails(false);},button);}
-function updateScope(button){if(!requireZone()){return;}req('PUT',base+'/zone/scope',{zone_id:zoneId(),account_ids:$('#account_ids').val()},function(){mdui.snackbar('生效范围已保存');showZoneDetails(false);},button);}
-function deleteZone(){if(!requireZone()){return;}mdui.confirm('只有域名下没有解析记录且生效范围已清空时才能删除。确定继续吗？','删除权威域名',function(){req('DELETE',base+'/zone',{zone_id:zoneId()},function(){mdui.snackbar('权威域名已删除');closePanel('zone_settings_panel');loadZones();});});}
+function enableCurrentScope(button){if(!requireZone()){return;}req('PUT',base+'/zone/scope',{zone_id:zoneId(),mode:'current'},function(r){currentScopeIds=(r.account_ids||[]).map(String);renderScopeState();mdui.snackbar(r.content||'当前账户已加入生效范围');showZoneDetails(false);},button);}
+function saveCustomScope(button){if(!requireZone()){return;}var ids=String($('#scope_account_ids').val()||'').trim();if(!ids){mdui.alert('请填写至少一个专属配置 ID；如需取消生效，请使用“清空范围”。');return;}req('PUT',base+'/zone/scope',{zone_id:zoneId(),mode:'custom',account_ids:ids},function(r){currentScopeIds=(r.account_ids||[]).map(String);renderScopeState();mdui.snackbar(r.content||'域名生效范围已更新');showZoneDetails(false);},button);}
+function clearScope(){if(!requireZone()){return;}mdui.confirm('清空后，此域名的解析记录将不会对任何 HTTPDNS 专属配置生效。记录本身仍会保留。','清空域名生效范围',function(){req('PUT',base+'/zone/scope',{zone_id:zoneId(),mode:'clear'},function(r){currentScopeIds=[];renderScopeState();mdui.snackbar(r.content||'域名生效范围已清空');showZoneDetails(false);});});}
+function deleteZone(){if(!requireZone()){return;}mdui.confirm('只有域名下没有解析记录且生效范围已清空时才能删除。确定继续吗？','删除权威域名',function(){req('DELETE',base+'/zone',{zone_id:zoneId()},function(){mdui.snackbar('权威域名已删除');closePanel('zone_settings_panel');closePanel('scope_settings_panel');loadZones();});});}
 
 function statusText(status){return status==='ENABLE'?'已启用':'已停用';}
 function lineText(line){var names={default:'默认',telecom:'中国电信',unicom:'中国联通',mobile:'中国移动',edu:'教育网',oversea:'境外',aliyun:'阿里云'};return names[line]||line;}
@@ -188,6 +306,6 @@ $('#zone').on('change',function(){closeRecordEditor();closePanel('zone_settings_
 $('#record_search').on('input',function(){renderRecords(currentRecords);});
 $('#type').on('change',updateTypeFields);
 $('#line').on('change',updateLineFields);
-$(function(){resetForm();loadZones();});
+$(function(){resetForm();loadDohAddress();loadZones();});
 {/literal}
 </script>{include file="../app/view/user/footer.html" /}</html>

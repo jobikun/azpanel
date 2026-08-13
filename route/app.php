@@ -86,6 +86,7 @@ Route::post('/user/aws/search',                   'UserAws/searchAccount');
 Route::get('/user/alibaba/:id/httpdns',                  'UserAlibaba/manage');
 Route::get('/user/alibaba/:id/httpdns/zones',            'UserAlibaba/zones');
 Route::get('/user/alibaba/:id/httpdns/connection',       'UserAlibaba/connection');
+Route::get('/user/alibaba/:id/httpdns/doh',              'UserAlibaba/doh');
 Route::get('/user/alibaba/:id/httpdns/zone',             'UserAlibaba/zone');
 Route::post('/user/alibaba/:id/httpdns/zone',            'UserAlibaba/addZone');
 Route::put('/user/alibaba/:id/httpdns/zone',             'UserAlibaba/updateZone');
